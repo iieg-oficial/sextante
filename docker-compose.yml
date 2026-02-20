@@ -1,0 +1,36 @@
+services:
+  geoserver:
+    image: kartoza/geoserver:2.27.0
+    container_name: geoserver
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER}
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD}
+      GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR}
+      ENABLE_JSONP: ${ENABLE_JSONP}
+      MAX_FILTER_RULES: ${MAX_FILTER_RULES}
+      OPTIMIZE_LINE_WIDTH: ${OPTIMIZE_LINE_WIDTH}
+      GEOSERVER_PROXY_BASE_URL: ${GEOSERVER_PROXY_BASE_URL}
+      GEOSERVER_CSRF_WHITELIST: ${GEOSERVER_CSRF_WHITELIST}
+      HTTP_SCHEME: ${HTTP_SCHEME}
+      POSTGIS_HOST: ${POSTGIS_HOST}
+      POSTGIS_PORT: ${POSTGIS_PORT}
+      POSTGIS_DB: ${POSTGIS_DB}
+      POSTGIS_USER: ${POSTGIS_USER}
+      POSTGIS_PASSWORD: ${POSTGIS_PASSWORD}
+    volumes:
+      - ./geoserver_data:/opt/geoserver/data_dir
+      - ./plugins:/opt/geoserver/webapps/geoserver/WEB-INF/lib/
+    networks:
+      - geonetwork
+
+volumes:
+  geoserver_data:
+
+networks:
+  geonetwork:
+    driver: bridge
