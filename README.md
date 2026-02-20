@@ -1,6 +1,6 @@
 # GeoServer Docker
 
-Despliegue de [GeoServer 2.27.0](https://geoserver.org/) mediante Docker usando la imagen oficial de [kartoza/geoserver](https://hub.docker.com/r/kartoza/geoserver), con conexión a una base de datos PostgreSQL/PostGIS remota.
+Despliegue de [GeoServer](https://geoserver.org/) mediante Docker usando la imagen oficial de [kartoza/geoserver](https://hub.docker.com/r/kartoza/geoserver), con conexión a una base de datos PostgreSQL/PostGIS remota.
 
 ---
 
@@ -125,7 +125,7 @@ Para agregar extensiones a GeoServer, coloca los archivos `.jar` en la carpeta `
 
 ## Conexión a PostgreSQL/PostGIS
 
-La conexión se establece desde VM1 hacia VM2. Para más detalles sobre la configuración de red, reglas de `pg_hba.conf` y troubleshooting, consulta [CONEXION_GEOSERVER_POSTGIS.md](CONEXION_GEOSERVER_POSTGIS.md).
+La conexión se establece desde geoserver hacia base de datos. 
 
 ---
 
@@ -137,4 +137,5 @@ geoserver_data/logs/
 geoserver_data/tmp/
 geoserver_data/temp/
 geoserver_data/gwc/tmp/
+plugins/
 ```
