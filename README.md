@@ -10,12 +10,10 @@ Despliegue de [GeoServer](https://geoserver.org/) mediante Docker usando la imag
 Internet (HTTPS)
       │
       ▼
-Dominio  (proxy inverso / SSL)
+Proxy inverso nginx (SSL termination)
       │
       ▼
-GeoServer en Docker  →  PostgreSQL/PostGIS :5433
-      │
-   puerto 8080
+GeoServer en Docker :8080  →  PostgreSQL/PostGIS
 ```
 
 ---
@@ -24,118 +22,160 @@ GeoServer en Docker  →  PostgreSQL/PostGIS :5433
 
 - Docker >= 24
 - Docker Compose >= 2
-- Acceso de red entre geoserver y base de datos en el puerto `5433`
+- `make`
+- Acceso de red al servidor PostgreSQL/PostGIS
 
 ---
 
 ## Estructura del proyecto
 
 ```
-geoserver-docker/
-├── docker-compose.yml       # Definición del servicio GeoServer
-├── .env                     # Variables de entorno (no subir a git)
-├── geoserver_data/          # Data dir persistente de GeoServer
-└── plugins/                 # JARs adicionales montados en WEB-INF/lib/
+geoserver/
+├── Makefile                         # Comandos de operación
+├── docker-compose.yml               # Definición del servicio
+├── server.xml                       # Conector Tomcat (HTTPS/proxy)
+├── config/
+│   ├── global.xml                   # URL pública del proxy
+│   └── security/
+│       └── csp.xml                  # Content Security Policy
+├── scripts/
+│   └── init-datastores.sh           # Crea datastores con SSL en PostgreSQL
+├── .env.example                     # Template de variables de entorno
+├── geoserver_data/                  # Data dir persistente (no versionado)
+├── plugins/                         # JARs adicionales (no versionado)
+└── backups/                         # Backups del data dir (no versionado)
 ```
 
 ---
 
 ## Configuración
 
-Las variables de entorno se gestionan en el archivo `.env`. Copia el ejemplo y ajusta los valores:
+Copia el archivo de ejemplo y ajusta los valores:
 
 ```bash
-cp .env.example .env   # si existe el ejemplo, o edita .env directamente
+cp .env.example .env
 ```
 
-| Variable                  | Descripción                                      | 
-|---------------------------|--------------------------------------------------|
-| `GEOSERVER_ADMIN_USER`    | Usuario administrador de GeoServer               | 
-| `GEOSERVER_ADMIN_PASSWORD`| Contraseña del administrador                     | 
-| `GEOSERVER_DATA_DIR`      | Ruta del data dir dentro del contenedor          | 
-| `ENABLE_JSONP`            | Habilita respuestas JSONP                        | 
-| `MAX_FILTER_RULES`        | Número máximo de reglas de filtro                | 
-| `OPTIMIZE_LINE_WIDTH`     | Optimización de ancho de línea                   | 
-| `GEOSERVER_PROXY_BASE_URL`| URL pública de GeoServer (tras el proxy)         | 
-| `GEOSERVER_CSRF_WHITELIST`| Dominio permitido para CSRF                      | 
-| `HTTP_SCHEME`             | Esquema HTTP usado por el proxy                  | 
-| `POSTGIS_HOST`            | IP del servidor PostgreSQL/PostGIS               |
-| `POSTGIS_PORT`            | Puerto de PostgreSQL en el host remoto           | 
-| `POSTGIS_DB`              | Nombre de la base de datos                       | 
-| `POSTGIS_USER`            | Usuario de PostgreSQL                            | 
-| `POSTGIS_PASSWORD`        | Contraseña de PostgreSQL                         | 
+| Variable                   | Descripción                              |
+|----------------------------|------------------------------------------|
+| `GEOSERVER_ADMIN_USER`     | Usuario administrador de GeoServer       |
+| `GEOSERVER_ADMIN_PASSWORD` | Contraseña del administrador             |
+| `GEOSERVER_DATA_DIR`       | Ruta del data dir dentro del contenedor  |
+| `ENABLE_JSONP`             | Habilita respuestas JSONP                |
+| `MAX_FILTER_RULES`         | Número máximo de reglas de filtro        |
+| `OPTIMIZE_LINE_WIDTH`      | Optimización de ancho de línea           |
+| `GEOSERVER_PROXY_BASE_URL` | URL pública de GeoServer tras el proxy   |
+| `GEOSERVER_CSRF_WHITELIST` | IP/dominio permitido para CSRF           |
+| `HTTP_SCHEME`              | Esquema usado por el proxy (`https`)     |
+| `POSTGIS_HOST`             | IP del servidor PostgreSQL               |
+| `POSTGIS_PORT`             | Puerto de PostgreSQL                     |
+| `POSTGIS_DB`               | Nombre de la base de datos               |
+| `POSTGIS_USER`             | Usuario de PostgreSQL                    |
+| `POSTGIS_PASSWORD`         | Contraseña de PostgreSQL                 |
 
-> **Importante:** Nunca subas el archivo `.env` a un repositorio público. Agrégalo a `.gitignore`.
+> **Importante:** Nunca subas `.env` al repositorio.
 
 ---
 
 ## Uso
 
-### Iniciar el servicio
+Todos los comandos se ejecutan con `make`:
 
 ```bash
-docker compose up -d
+make help
 ```
 
-### Ver logs
+### Primer despliegue
 
 ```bash
-docker compose logs -f geoserver
+# 1. Configurar variables de entorno
+cp .env.example .env
+
+# 2. Levantar GeoServer e inicializar datastores
+make up
 ```
 
-### Detener el servicio
+### Operación diaria
 
 ```bash
-docker compose down
+make up        # Levantar
+make down      # Detener
+make restart   # Reiniciar
+make logs      # Ver logs en tiempo real
 ```
 
-### Reiniciar
+### Backup y restore
 
 ```bash
-docker compose restart geoserver
+# Crear backup (se guarda en backups/ con timestamp)
+make backup
+
+# Restaurar el backup más reciente
+make restore
+
+# Restaurar un backup específico
+make restore RESTORE_FILE=backups/geoserver_data_20260220_120000.tar.gz
 ```
+
+### Limpiar todo
+
+```bash
+make clean     # Detiene el contenedor y elimina geoserver_data/
+```
+
+---
+
+## Despliegue en otra máquina
+
+```bash
+# 1. Clonar el repositorio
+git clone <repo> && cd geoserver
+
+# 2. Configurar variables
+cp .env.example .env
+
+# 3. Copiar el backup del servidor anterior
+scp usuario@servidor-anterior:/ruta/backups/geoserver_data_*.tar.gz backups/
+
+# 4. Restaurar y levantar
+make restore
+```
+
+Si no hay backup previo, `make up` levanta GeoServer con configuración base.
 
 ---
 
 ## Acceso
 
-| Interfaz        | URL                                                      |
-|-----------------|----------------------------------------------------------|
-| Web UI (local)  | http://localhost:8080/geoserver/web                      |
-| Web UI (público)| dominio/geoserver/web              |
-| OGC Services    | dominio/geoserver/wms, /wfs, /wcs |
-
+| Interfaz         | URL                                        |
+|------------------|--------------------------------------------|
+| Web UI (local)   | http://localhost:8080/geoserver/web        |
+| Web UI (público) | https://iieg.jalisco.gob.mx/geoserver/web  |
+| WMS              | https://iieg.jalisco.gob.mx/geoserver/wms  |
+| WFS              | https://iieg.jalisco.gob.mx/geoserver/wfs  |
 
 ---
 
 ## Volúmenes
 
-| Ruta en el host              | Ruta en el contenedor                              | Descripción                       |
-|------------------------------|----------------------------------------------------|-----------------------------------|
-| `./geoserver_data`           | `/opt/geoserver/data_dir`                          | Configuración y datos persistentes|
-| `./plugins`                  | `/opt/geoserver/webapps/geoserver/WEB-INF/lib/`   | Plugins/extensiones adicionales   |
+| Host                         | Contenedor                                        | Descripción                        |
+|------------------------------|---------------------------------------------------|------------------------------------|
+| `./geoserver_data`           | `/opt/geoserver/data_dir`                         | Datos y configuración persistentes |
+| `./plugins`                  | `/opt/geoserver/webapps/geoserver/WEB-INF/lib/`  | Plugins adicionales                |
+| `./server.xml`               | `/usr/local/tomcat/conf/server.xml`               | Conector Tomcat HTTPS              |
+| `./config/global.xml`        | `/opt/geoserver/data_dir/global.xml`              | URL del proxy                      |
+| `./config/security/csp.xml`  | `/opt/geoserver/data_dir/security/csp.xml`        | Content Security Policy            |
 
 ---
 
 ## Plugins
 
-Para agregar extensiones a GeoServer, coloca los archivos `.jar` en la carpeta `plugins/`. Serán montados directamente en el classpath del servidor al iniciar el contenedor.
+Coloca los archivos `.jar` en la carpeta `plugins/`. Se montan directamente en el classpath al iniciar el contenedor.
 
 ---
 
-## Conexión a PostgreSQL/PostGIS
+## Conexión PostgreSQL/PostGIS
 
-La conexión se establece desde geoserver hacia base de datos. 
+La conexión usa SSL (`ssl=true`, `NonValidatingFactory`). El script `scripts/init-datastores.sh` crea los datastores automáticamente al ejecutar `make up`, leyendo las credenciales del `.env`.
 
----
-
-## .gitignore recomendado
-
-```
-.env
-geoserver_data/logs/
-geoserver_data/tmp/
-geoserver_data/temp/
-geoserver_data/gwc/tmp/
-plugins/
-```
+Para añadir más datastores, edita `scripts/init-datastores.sh` agregando nuevas llamadas a `create_datastore`.
