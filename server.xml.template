@@ -12,7 +12,7 @@
 
   <Service name="Catalina">
 
-    <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="8443" maxParameterCount="1000" scheme="https" secure="true" proxyName="iieg.jalisco.gob.mx" proxyPort="443"/>
+    <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="8443" maxParameterCount="1000" scheme="${HTTP_SCHEME}" secure="true" proxyName="${PROXY_HOST}" proxyPort="${PROXY_PORT}"/>
 
     <Engine name="Catalina" defaultHost="localhost">
 

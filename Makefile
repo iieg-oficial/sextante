@@ -1,15 +1,14 @@
-.DEFAULT_GOAL := help
+.DiEFAULT_GOAL := help
 BACKUP_DIR    := backups
 BACKUP_FILE   ?= $(BACKUP_DIR)/geoserver_data_$(shell date +%Y%m%d_%H%M%S).tar.gz
 RESTORE_FILE  ?= $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 
-.PHONY: help up down restart logs backup restore clean
+.PHONY: help up down restart logs backup restore clean generate-config
 
 help:
 	@echo ""
 	@echo "Uso: make [target]"
-	@echo ""
-	@echo "  up           Levanta GeoServer e inicializa datastores"
+	@echo ""  @echo "  generate-config  Genera server.xml y config/global.xml desde .env"	@echo "  up           Levanta GeoServer e inicializa datastores"
 	@echo "  down         Detiene GeoServer"
 	@echo "  restart      Reinicia GeoServer"
 	@echo "  logs         Muestra logs en tiempo real"
@@ -21,7 +20,14 @@ help:
 	@echo "  make restore RESTORE_FILE=backups/geoserver_data_20260220_120000.tar.gz"
 	@echo ""
 
-up:
+generate-config:
+	@echo "Generando configuración desde .env..."
+	@set -a && . ./.env && set +a && \
+		envsubst < server.xml.template > server.xml && \
+		envsubst < config/global.xml.template > config/global.xml
+	@echo "Archivos generados: server.xml, config/global.xml"
+
+up: generate-config
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
 	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep GEOSERVER_ADMIN_USER | cut -d= -f2):$$(docker exec geoserver env | grep GEOSERVER_ADMIN_PASSWORD | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
