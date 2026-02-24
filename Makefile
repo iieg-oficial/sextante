@@ -51,7 +51,7 @@ backup:
 	@docker exec geoserver tar -czf - -C /opt/geoserver data_dir > $(BACKUP_FILE)
 	@echo "Backup guardado: $(BACKUP_FILE)"
 
-restore:
+restore: generate-config
 	@if [ -z "$(RESTORE_FILE)" ]; then \
 		echo "Error: no se encontró ningún backup en $(BACKUP_DIR)/"; exit 1; \
 	fi
