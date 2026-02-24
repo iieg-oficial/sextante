@@ -1,4 +1,4 @@
-# GeoServer Docker
+ GeoServer Docker
 
 Despliegue de [GeoServer](https://geoserver.org/) mediante Docker usando la imagen oficial de [kartoza/geoserver](https://hub.docker.com/r/kartoza/geoserver), con conexión a una base de datos PostgreSQL/PostGIS remota.
 
@@ -94,6 +94,7 @@ cp .env.example .env
 # 2. Levantar GeoServer e inicializar datastores
 make up
 ```
+> Nota: RESET_ADMIN_CREDENTIALS:FALSE en producción
 
 ### Operación diaria
 
@@ -176,6 +177,29 @@ Coloca los archivos `.jar` en la carpeta `plugins/`. Se montan directamente en e
 
 ## Conexión PostgreSQL/PostGIS
 
-La conexión usa SSL (`ssl=true`, `NonValidatingFactory`). El script `scripts/init-datastores.sh` crea los datastores automáticamente al ejecutar `make up`, leyendo las credenciales del `.env`.
+La conexión usa `sslmode` configurable mediante la variable `POSTGIS_SSLMODE` en el `.env` (valor por defecto: `allow`). El script `scripts/init-datastores.sh` crea o actualiza los datastores automáticamente al ejecutar `make up`, leyendo las credenciales del `.env`.
 
 Para añadir más datastores, edita `scripts/init-datastores.sh` agregando nuevas llamadas a `create_datastore`.
+
+---
+
+## Errores frecuentes
+
+### Error al crear datastore: `pg_hba.conf rejects connection ... no encryption`
+
+**Mensaje completo:**
+```
+Error creating data store, check the parameters. Error message: Unable to obtain
+connection: Cannot create PoolableConnectionFactory (FATAL: pg_hba.conf rejects
+connection for host "10.x.x.x", user "usrgis", database "iieg_gis", no encryption)
+```
+
+**Causa:** El servidor PostgreSQL exige cifrado en las conexiones de esa IP, pero el datastore se configuró sin SSL.
+
+**Solución:** Al crear o editar el datastore en GeoServer, establecer el campo **SSL mode** en `allow` (o `prefer`/`require` según la configuración del servidor).
+
+Si el datastore ya existe, el script `init-datastores.sh` lo actualiza automáticamente usando el valor de `POSTGIS_SSLMODE` del `.env`:
+
+```bash
+bash scripts/init-datastores.sh
+```
