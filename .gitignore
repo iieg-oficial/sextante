@@ -2,3 +2,5 @@
 geoserver_data/
 plugins/
 backups/
+server.xml
+config/global.xml
