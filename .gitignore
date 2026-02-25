@@ -1,4 +1,7 @@
 .env
 geoserver_data/
+data_dir/
 plugins/
 backups/
+server.xml
+config/global.xml
