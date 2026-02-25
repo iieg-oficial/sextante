@@ -27,13 +27,13 @@ services:
       - ./geoserver_data:/opt/geoserver/data_dir
       - ./plugins:/opt/geoserver/webapps/geoserver/WEB-INF/lib/
       - ./server.xml:/usr/local/tomcat/conf/server.xml:ro
-      - ./config/global.xml:/opt/geoserver/data_dir/global.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
     networks:
       - geonetwork
 
 volumes:
   geoserver_data:
+
 
 networks:
   geonetwork:

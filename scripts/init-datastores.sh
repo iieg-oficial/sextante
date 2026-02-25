@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  . "$PROJECT_DIR/.env"
+  set +a
+fi
+
 GEOSERVER_URL="http://localhost:8080/geoserver"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
@@ -15,6 +24,7 @@ wait_for_geoserver() {
 create_datastore() {
   local workspace=$1
   local name=$2
+  local schema=${3:-$name}
 
   local payload="{
       \"dataStore\": {
@@ -25,6 +35,7 @@ create_datastore() {
             {\"@key\": \"host\",       \"\$\": \"$POSTGIS_HOST\"},
             {\"@key\": \"port\",       \"\$\": \"$POSTGIS_PORT\"},
             {\"@key\": \"database\",   \"\$\": \"$POSTGIS_DB\"},
+            {\"@key\": \"schema\",     \"\$\": \"$schema\"},
             {\"@key\": \"user\",       \"\$\": \"$POSTGIS_USER\"},
             {\"@key\": \"passwd\",     \"\$\": \"$POSTGIS_PASSWORD\"},
             {\"@key\": \"sslmode\",    \"\$\": \"$POSTGIS_SSLMODE\"}
@@ -56,4 +67,19 @@ create_datastore() {
 }
 
 wait_for_geoserver
-create_datastore "economia" "postgis_iieg"
+
+WORKSPACES=(
+  "demografia"
+  "desarrollo_social"
+  "economia"
+  "educacion"
+  "general"
+  "gobierno_y_ciudadania"
+  "recursos_y_calidad_de_vida"
+  "salud"
+  "seguridad_y_proteccion_ciudadana"
+)
+
+for ws in "${WORKSPACES[@]}"; do
+  create_datastore "$ws" "$ws"
+done
