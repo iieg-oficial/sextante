@@ -80,6 +80,11 @@ WORKSPACES=(
   "seguridad_y_proteccion_ciudadana"
 )
 
+declare -A SCHEMA_MAP=(
+  ["general"]="mapa_base"
+)
+
 for ws in "${WORKSPACES[@]}"; do
-  create_datastore "$ws" "$ws"
+  schema="${SCHEMA_MAP[$ws]:-$ws}"
+  create_datastore "$ws" "$ws" "$schema"
 done
