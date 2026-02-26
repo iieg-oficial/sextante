@@ -6,6 +6,7 @@
     </contact>
     <numDecimals>0</numDecimals>
     <proxyBaseUrl>${GEOSERVER_PROXY_BASE_URL}</proxyBaseUrl>
+    <useHeadersProxyURL>true</useHeadersProxyURL>
     <verbose>false</verbose>
     <verboseExceptions>false</verboseExceptions>
     <localWorkspaceIncludesPrefix>false</localWorkspaceIncludesPrefix>
