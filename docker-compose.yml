@@ -29,6 +29,7 @@ services:
       - ./plugins:/opt/geoserver/webapps/geoserver/WEB-INF/lib/
       - ./server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
+      - ./config/wms.xml:/opt/geoserver/data_dir/wms.xml:ro
     networks:
       - geonetwork
 
