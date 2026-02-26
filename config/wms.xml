@@ -13,7 +13,7 @@
   <citeCompliant>false</citeCompliant>
   <schemaBaseURL>http://schemas.opengis.net</schemaBaseURL>
   <verbose>false</verbose>
-  <charset>UTF-8</charset>
+
   <watermark>
     <enabled>false</enabled>
     <position>BOT_RIGHT</position>
