@@ -52,7 +52,7 @@ Estándar del Open Geospatial Consortium (OGC)</abstrct>
       </gml>
     </entry>
   </gml>
-  <serviceLevel>COMPLETE</serviceLevel>
+  <serviceLevel>BASIC</serviceLevel>
   <maxFeatures>1000000</maxFeatures>
   <featureBounding>true</featureBounding>
   <canonicalSchemaLocation>false</canonicalSchemaLocation>
