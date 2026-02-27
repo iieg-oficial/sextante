@@ -31,6 +31,9 @@ services:
       - ./plugins:/opt/geoserver/webapps/geoserver/WEB-INF/lib/
       - ./server.xml.template:/opt/geoserver/server.xml.template:ro
       - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
+      - ./config/global.xml.template:/opt/geoserver/global.xml.template:ro
+      - ./config/wms.xml:/opt/geoserver/data_dir/wms.xml:ro
+      - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
     networks:
       - geonetwork
