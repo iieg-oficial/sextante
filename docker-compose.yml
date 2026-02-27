@@ -25,10 +25,12 @@ services:
       POSTGIS_DB: ${POSTGIS_DB}
       POSTGIS_USER: ${POSTGIS_USER}
       POSTGIS_PASSWORD: ${POSTGIS_PASSWORD}
+    entrypoint: /opt/geoserver/scripts/entrypoint-wrapper.sh
     volumes:
       - ./geoserver_data:/opt/geoserver/data_dir
       - ./plugins:/opt/geoserver/webapps/geoserver/WEB-INF/lib/
-      - ./server.xml:/usr/local/tomcat/conf/server.xml:ro
+      - ./server.xml.template:/opt/geoserver/server.xml.template:ro
+      - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
     networks:
       - geonetwork
