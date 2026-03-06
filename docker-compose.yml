@@ -37,6 +37,7 @@ services:
       - ./config/wms.xml:/opt/geoserver/data_dir/wms.xml:ro
       - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
+      - ./fonts:/usr/share/fonts/custom:ro
     networks:
       - geonetwork
 
