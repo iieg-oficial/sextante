@@ -31,11 +31,11 @@ up: generate-config
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
-	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep GEOSERVER_ADMIN_USER | cut -d= -f2):$$(docker exec geoserver env | grep GEOSERVER_ADMIN_PASSWORD | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
+	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
 		printf '.'; sleep 5; \
 	done
 	@echo ""
-	@docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep GEOSERVER_ADMIN_USER | cut -d= -f2):$$(docker exec geoserver env | grep GEOSERVER_ADMIN_PASSWORD | cut -d= -f2)" -X PUT -H "Content-Type: application/json" -d '{"global":{"settings":{"charset":"UTF-8"}}}' http://localhost:8080/geoserver/rest/settings > /dev/null 2>&1 || true
+	@docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" -X PUT -H "Content-Type: application/json" -d '{"global":{"settings":{"charset":"UTF-8"}}}' http://localhost:8080/geoserver/rest/settings > /dev/null 2>&1 || true
 	@bash scripts/init-datastores.sh
 
 down:
@@ -90,7 +90,7 @@ restore: generate-config
 	@echo "[5/5] Levantando contenedor..."
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
-	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep GEOSERVER_ADMIN_USER | cut -d= -f2):$$(docker exec geoserver env | grep GEOSERVER_ADMIN_PASSWORD | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
+	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
 		printf '.'; sleep 5; \
 	done
 	@echo ""
