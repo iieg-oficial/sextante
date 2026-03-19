@@ -15,7 +15,7 @@ AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
 wait_for_geoserver() {
   echo "Esperando GeoServer..."
-  until curl -sf -u "$AUTH" "$GEOSERVER_URL/rest/about/version.json" > /dev/null; do
+  until curl -sf "$GEOSERVER_URL/web/" > /dev/null; do
     sleep 5
   done
   echo "GeoServer listo."

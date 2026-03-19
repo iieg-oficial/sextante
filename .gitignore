@@ -2,6 +2,7 @@
 geoserver_data/
 data_dir/
 plugins/
-backups/
+backups/*.tar.gz
+restore/*.tar.gz
 server.xml
 config/global.xml

@@ -1,7 +1,9 @@
 .DiEFAULT_GOAL := help
 BACKUP_DIR    := backups
 BACKUP_FILE   ?= $(BACKUP_DIR)/geoserver_data_$(shell date +%Y%m%d_%H%M%S).tar.gz
-RESTORE_FILE  ?= $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
+RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver_data_*.tar.gz)))
+RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
+RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
 .PHONY: help up down restart logs backup restore clean generate-config
 
@@ -31,7 +33,7 @@ up: generate-config
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
-	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
+	@until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
 		printf '.'; sleep 5; \
 	done
 	@echo ""
@@ -68,36 +70,34 @@ backup:
 	@echo ""
 
 restore: generate-config
-	@if [ -z "$(RESTORE_FILE)" ]; then \
-		echo "Error: no se encontró ningún backup en $(BACKUP_DIR)/"; exit 1; \
-	fi
-	@if [ ! -f "$(RESTORE_FILE)" ]; then \
-		echo "Error: archivo no encontrado: $(RESTORE_FILE)"; exit 1; \
-	fi
-	@FILESIZE=$$(du -h $(RESTORE_FILE) | cut -f1); \
+	@if [ -z "$(RESTORE_FILE)" ] || [ ! -f "$(RESTORE_FILE)" ]; then \
+		echo "No se encontró ningún backup en restore/ ni en backups/."; \
+	else \
+		FILESIZE=$$(du -h "$(RESTORE_FILE)" | cut -f1); \
 		echo ""; \
 		echo "═══ Restore GeoServer ═══"; \
-		echo "Archivo: $(RESTORE_FILE) ($$FILESIZE)"
-	@echo "[1/5] Deteniendo contenedor..."
-	docker compose down
-	@echo "[2/5] Limpiando datos anteriores..."
-	@docker run --rm -v $(CURDIR):/data alpine rm -rf /data/geoserver_data /data/plugins
-	@echo "[3/5] Extrayendo backup (un punto = 1000 archivos)..."
-	tar -xzf $(RESTORE_FILE) --checkpoint=1000 --checkpoint-action=exec='printf .' && echo ''
-	@mv data_dir geoserver_data
-	@echo "[4/5] Aplicando configuración..."
-	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
-	@echo "[5/5] Levantando contenedor..."
-	docker compose up -d
-	@echo "Esperando que GeoServer esté listo..."
-	@until docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" http://localhost:8080/geoserver/rest/about/version.json > /dev/null 2>&1; do \
-		printf '.'; sleep 5; \
-	done
-	@echo ""
-	@bash scripts/init-datastores.sh
-	@echo ""
-	@echo "✓ Restauración completa."
-	@echo ""
+		echo "Archivo: $(RESTORE_FILE) ($$FILESIZE)"; \
+		echo "[1/5] Deteniendo contenedor..."; \
+		docker compose down; \
+		echo "[2/5] Limpiando datos anteriores..."; \
+		docker run --rm -v $(CURDIR):/data alpine rm -rf /data/geoserver_data /data/plugins; \
+		echo "[3/5] Extrayendo backup (un punto = 1000 archivos)..."; \
+		tar -xzf "$(RESTORE_FILE)" --checkpoint=1000 --checkpoint-action=exec='printf .' && echo ''; \
+		mv data_dir geoserver_data; \
+		echo "[4/5] Aplicando configuración..."; \
+		cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true; \
+		echo "[5/5] Levantando contenedor..."; \
+		docker compose up -d; \
+		echo "Esperando que GeoServer esté listo..."; \
+		until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
+			printf '.'; sleep 5; \
+		done; \
+		echo ""; \
+		bash scripts/init-datastores.sh; \
+		echo ""; \
+		echo "✓ Restauración completa."; \
+		echo ""; \
+	fi
 
 clean:
 	@echo "Advertencia: esto eliminará geoserver_data/ permanentemente."
