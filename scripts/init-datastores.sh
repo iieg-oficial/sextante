@@ -1,4 +1,5 @@
 #!/bin/bash
+set +H
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,48 +29,60 @@ wait_for_geoserver() {
   echo "GeoServer listo."
 }
 
+json_escape() {
+  printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()), end="")'
+}
+
 create_datastore() {
   local workspace=$1
   local name=$2
   local schema=${3:-$name}
 
-  local payload="{
-      \"dataStore\": {
-        \"name\": \"$name\",
-        \"connectionParameters\": {
-          \"entry\": [
-            {\"@key\": \"dbtype\",     \"\$\": \"postgis\"},
-            {\"@key\": \"host\",       \"\$\": \"$POSTGIS_HOST\"},
-            {\"@key\": \"port\",       \"\$\": \"$POSTGIS_PORT\"},
-            {\"@key\": \"database\",   \"\$\": \"$POSTGIS_DB\"},
-            {\"@key\": \"schema\",     \"\$\": \"$schema\"},
-            {\"@key\": \"user\",       \"\$\": \"$POSTGIS_USER\"},
-            {\"@key\": \"passwd\",     \"\$\": \"$POSTGIS_PASSWORD\"},
-            {\"@key\": \"sslmode\",    \"\$\": \"$POSTGIS_SSLMODE\"}
-          ]
-        }
-      }
-    }"
+  local escaped_passwd
+  escaped_passwd=$(json_escape "$POSTGIS_PASSWORD")
 
-  exists=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
+  local payload
+  payload=$(cat <<EOJSON
+{
+  "dataStore": {
+    "name": "$name",
+    "connectionParameters": {
+      "entry": [
+        {"@key": "dbtype",   "\$": "postgis"},
+        {"@key": "host",     "\$": "$POSTGIS_HOST"},
+        {"@key": "port",     "\$": "$POSTGIS_PORT"},
+        {"@key": "database", "\$": "$POSTGIS_DB"},
+        {"@key": "schema",   "\$": "$schema"},
+        {"@key": "user",     "\$": "$POSTGIS_USER"},
+        {"@key": "passwd",   "\$": $escaped_passwd},
+        {"@key": "sslmode",  "\$": "$POSTGIS_SSLMODE"}
+      ]
+    }
+  }
+}
+EOJSON
+)
+
+  local http_code
+  http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
     "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name.json")
 
-  if [ "$exists" = "200" ]; then
+  if [ "$http_code" = "200" ]; then
     echo "Actualizando datastore '$name'..."
-    curl -sf --max-time 30 -u "$AUTH" \
+    curl -s --max-time 30 -u "$AUTH" \
       -XPUT \
       -H "Content-Type: application/json" \
       -d "$payload" \
       "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name"
-    echo "Datastore '$name' actualizado."
+    echo " OK"
   else
     echo "Creando datastore '$name'..."
-    curl -sf --max-time 30 -u "$AUTH" \
+    curl -s --max-time 30 -u "$AUTH" \
       -XPOST \
       -H "Content-Type: application/json" \
       -d "$payload" \
       "$GEOSERVER_URL/rest/workspaces/$workspace/datastores"
-    echo "Datastore '$name' creado."
+    echo " OK"
   fi
 }
 
