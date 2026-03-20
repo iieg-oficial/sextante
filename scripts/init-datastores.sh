@@ -14,8 +14,15 @@ GEOSERVER_URL="http://localhost:8080/geoserver"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
 wait_for_geoserver() {
+  local max_attempts=24
+  local attempt=0
   echo "Esperando GeoServer..."
-  until curl -sf "$GEOSERVER_URL/web/" > /dev/null; do
+  until curl -sf --max-time 10 "$GEOSERVER_URL/web/" > /dev/null; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "GeoServer no respondió después de $((max_attempts * 5)) segundos." >&2
+      exit 1
+    fi
     sleep 5
   done
   echo "GeoServer listo."
@@ -44,12 +51,12 @@ create_datastore() {
       }
     }"
 
-  exists=$(curl -s -o /dev/null -w "%{http_code}" -u "$AUTH" \
+  exists=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
     "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name.json")
 
   if [ "$exists" = "200" ]; then
     echo "Actualizando datastore '$name'..."
-    curl -sf -u "$AUTH" \
+    curl -sf --max-time 30 -u "$AUTH" \
       -XPUT \
       -H "Content-Type: application/json" \
       -d "$payload" \
@@ -57,7 +64,7 @@ create_datastore() {
     echo "Datastore '$name' actualizado."
   else
     echo "Creando datastore '$name'..."
-    curl -sf -u "$AUTH" \
+    curl -sf --max-time 30 -u "$AUTH" \
       -XPOST \
       -H "Content-Type: application/json" \
       -d "$payload" \
