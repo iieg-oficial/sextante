@@ -88,6 +88,21 @@ EOJSON
 
 wait_for_geoserver
 
+verify_credentials() {
+  local http_code
+  http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
+  while [ "$http_code" = "401" ]; do
+    echo "Error 401: Credenciales incorrectas."
+    read -p "Usuario GeoServer: " input_user
+    read -s -p "Contrasena GeoServer: " input_pass
+    echo ""
+    AUTH="${input_user}:${input_pass}"
+    http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
+  done
+}
+
+verify_credentials
+
 WORKSPACES=(
   "demografia"
   "desarrollo_social"
