@@ -10,7 +10,8 @@ RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE
 help:
 	@echo ""
 	@echo "Uso: make [target]"
-	@echo ""  @echo "  generate-config  Genera server.xml y config/global.xml desde .env"	@echo "  up           Levanta GeoServer e inicializa datastores"
+	@echo ""  @echo "  generate-config  Genera server.xml y config/global.xml desde .env"	
+	@echo "  up           Levanta GeoServer e inicializa datastores"
 	@echo "  down         Detiene GeoServer"
 	@echo "  restart      Reinicia GeoServer"
 	@echo "  logs         Muestra logs en tiempo real"
