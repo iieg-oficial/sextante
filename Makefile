@@ -33,6 +33,7 @@ generate-config:
 
 up: generate-config
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
+	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
 	@until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
@@ -89,6 +90,7 @@ restore: generate-config
 		echo "[4/5] Aplicando configuración..."; \
 		cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true; \
 		echo "[5/5] Levantando contenedor..."; \
+		docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network; \
 		docker compose up -d; \
 		echo "Esperando que GeoServer esté listo..."; \
 		until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
