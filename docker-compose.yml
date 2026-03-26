@@ -40,11 +40,13 @@ services:
       - ./fonts:/usr/share/fonts/custom:ro
     networks:
       - geonetwork
+      - dataengine-network
 
 volumes:
   geoserver_data:
 
-
 networks:
   geonetwork:
     driver: bridge
+  dataengine-network:
+    external: true

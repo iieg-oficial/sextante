@@ -55,7 +55,19 @@ create_datastore() {
         {"@key": "schema",   "\$": "$schema"},
         {"@key": "user",     "\$": "$POSTGIS_USER"},
         {"@key": "passwd",   "\$": $escaped_passwd},
-        {"@key": "sslmode",  "\$": "$POSTGIS_SSLMODE"}
+        {"@key": "sslmode",  "\$": "$POSTGIS_SSLMODE"},
+        {"@key": "max connections", "\$": "50"},
+        {"@key": "min connections", "\$": "5"},
+        {"@key": "Connection timeout", "\$": "20"},
+        {"@key": "validate connections", "\$": "true"},
+        {"@key": "Test while idle", "\$": "true"},
+        {"@key": "Evictor run periodicity", "\$": "300"},
+        {"@key": "Max connection idle time", "\$": "300"},
+        {"@key": "Evictor tests per run", "\$": "3"},
+        {"@key": "Loose bbox", "\$": "true"},
+        {"@key": "Estimated extends", "\$": "true"},
+        {"@key": "fetch size", "\$": "1000"},
+        {"@key": "prepare statements", "\$": "true"}
       ]
     }
   }
@@ -69,7 +81,7 @@ EOJSON
 
   if [ "$http_code" = "200" ]; then
     echo "Actualizando datastore '$name'..."
-    curl -s --max-time 30 -u "$AUTH" \
+    curl -s -f --max-time 30 -u "$AUTH" \
       -XPUT \
       -H "Content-Type: application/json" \
       -d "$payload" \

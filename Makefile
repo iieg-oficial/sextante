@@ -1,4 +1,4 @@
-.DiEFAULT_GOAL := help
+.DEFAULT_GOAL := help
 BACKUP_DIR    := backups
 BACKUP_FILE   ?= $(BACKUP_DIR)/geoserver_data_$(shell date +%Y%m%d_%H%M%S).tar.gz
 RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver_data_*.tar.gz)))
@@ -11,7 +11,7 @@ help:
 	@echo ""
 	@echo "Uso: make [target]"
 	@echo ""  
-	@echo "  generate-config  	Genera server.xml y config/global.xml desde .env"	
+	@echo "  generate-config  	Genera server.xml y config/global.xml desde .env"
 	@echo "  up           		Levanta GeoServer e inicializa datastores"
 	@echo "  down         		Detiene GeoServer"
 	@echo "  restart      		Reinicia GeoServer"
