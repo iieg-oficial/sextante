@@ -102,13 +102,18 @@ wait_for_geoserver
 
 verify_credentials() {
   local http_code
+  local max_retries=12
+  local attempt=0
   http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
   while [ "$http_code" = "401" ]; do
-    echo "Error 401: Credenciales incorrectas."
-    read -p "Usuario GeoServer: " input_user
-    read -s -p "Contrasena GeoServer: " input_pass
-    echo ""
-    AUTH="${input_user}:${input_pass}"
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$max_retries" ]; then
+      echo "Error: Las credenciales del .env no fueron aceptadas tras $max_retries intentos." >&2
+      echo "Verifica GEOSERVER_ADMIN_USER y GEOSERVER_ADMIN_PASSWORD en el .env" >&2
+      exit 1
+    fi
+    echo "Credenciales aun no aplicadas, reintentando en 5s... (intento $attempt/$max_retries)"
+    sleep 5
     http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
   done
 }

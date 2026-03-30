@@ -90,7 +90,7 @@ restore: generate-config
 		mv data_dir geoserver_data; \
 		echo "[4/5] Aplicando configuración..."; \
 		cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true; \
-		echo "[5/5] Levantando contenedor..."; \
+		echo "[5/6] Levantando contenedor..."; \
 		docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network; \
 		docker compose up -d; \
 		echo "Esperando que GeoServer esté listo..."; \
@@ -98,6 +98,8 @@ restore: generate-config
 			printf '.'; sleep 5; \
 		done; \
 		echo ""; \
+		echo "[6/6] Actualizando credenciales admin..."; \
+		bash scripts/reset-admin.sh; \
 		python3 scripts/optimize-cultivos.py; \
 		bash scripts/init-datastores.sh; \
 		echo ""; \
