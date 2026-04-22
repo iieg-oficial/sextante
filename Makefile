@@ -36,7 +36,15 @@ up: generate-config
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
-	@until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
+	@attempts=0; max=24; \
+	until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
+		attempts=$$((attempts+1)); \
+		if [ $$attempts -ge $$max ]; then \
+			echo ""; \
+			echo "✗ GeoServer no respondió después de $$((max*5))s. Últimos logs:"; \
+			docker logs geoserver --tail 20 2>&1; \
+			exit 1; \
+		fi; \
 		printf '.'; sleep 5; \
 	done
 	@echo ""
@@ -94,14 +102,22 @@ restore: generate-config
 		docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network; \
 		docker compose up -d; \
 		echo "Esperando que GeoServer esté listo..."; \
+		attempts=0; max=24; \
 		until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
+			attempts=$$((attempts+1)); \
+			if [ $$attempts -ge $$max ]; then \
+				echo ""; \
+				echo "✗ GeoServer no respondió después de $$((max*5))s. Últimos logs:"; \
+				docker logs geoserver --tail 20 2>&1; \
+				exit 1; \
+			fi; \
 			printf '.'; sleep 5; \
 		done; \
 		echo ""; \
-		echo "[6/6] Actualizando credenciales admin..."; \
+		echo "[6/6] Actualizando credenciales admin e inicializando datastores..."; \
 		bash scripts/reset-admin.sh; \
-		python3 scripts/optimize-cultivos.py; \
 		bash scripts/init-datastores.sh; \
+		python3 scripts/optimize-cultivos.py; \
 		echo ""; \
 		echo "✓ Restauración completa."; \
 		echo ""; \
