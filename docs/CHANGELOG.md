@@ -3,15 +3,7 @@
 Todos los cambios notables del proyecto se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
-y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/). El
-versionado del repo `geoserver` es independiente del de GeoServer; aquí registramos los
-cambios sobre la configuración del workspace, fonts, error pages, scripts de optimización
-de capas y políticas de respaldo. Bumps por característica registrada en commit.
-
-La versión `1.0.0` corresponde al primer despliegue a `production` (merge del PR #1
-del 2026-02-25). Las versiones posteriores se reconstruyeron retroactivamente a partir
-del historial de commits, con un bump por característica (`feat` → minor, `fix` → patch;
-`refactor`/`docs`/`chore` se agrupan con la característica relacionada).
+y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
