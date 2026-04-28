@@ -38,6 +38,8 @@ services:
       - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
       - ./fonts:/usr/share/fonts/custom:ro
+      - ./VERSION:/opt/geoserver/VERSION:ro
+      - ./docs/CHANGELOG.md:/opt/geoserver/CHANGELOG.md:ro
     networks:
       - geonetwork
       - dataengine-network
