@@ -7,6 +7,13 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.15.0] - 2026-05-06
+
+### Agregado
+- Target `make build` que recrea el contenedor con los cambios del `.env`.
+- Variable `TOMCAT_SECURE` configurable desde `.env` para integrar correctamente con
+  reverse proxies (HTTPS terminando en el proxy).
+
 ## [1.14.2] - 2026-05-06
 
 ### Agregado
