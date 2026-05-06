@@ -33,16 +33,12 @@ json_escape() {
   printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()), end="")'
 }
 
-create_datastore() {
-  local workspace=$1
-  local name=$2
-  local schema=${3:-$name}
-
+build_datastore_payload() {
+  local name=$1
+  local schema=$2
   local escaped_passwd
   escaped_passwd=$(json_escape "$POSTGIS_PASSWORD")
-
-  local payload
-  payload=$(cat <<EOJSON
+  cat <<EOJSON
 {
   "dataStore": {
     "name": "$name",
@@ -73,14 +69,22 @@ create_datastore() {
   }
 }
 EOJSON
-)
+}
+
+create_datastore() {
+  local workspace=$1
+  local name=$2
+  local schema=${3:-$name}
+
+  local payload
+  payload=$(build_datastore_payload "$name" "$schema")
 
   local http_code
   http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
     "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name.json")
 
   if [ "$http_code" = "200" ]; then
-    echo "Actualizando datastore '$name'..."
+    echo "Actualizando datastore '$workspace:$name' (schema=$schema)..."
     curl -s -f --max-time 30 -u "$AUTH" \
       -XPUT \
       -H "Content-Type: application/json" \
@@ -88,7 +92,7 @@ EOJSON
       "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name"
     echo " OK"
   else
-    echo "Creando datastore '$name'..."
+    echo "Creando datastore '$workspace:$name' (schema=$schema)..."
     curl -s --max-time 30 -u "$AUTH" \
       -XPOST \
       -H "Content-Type: application/json" \
@@ -96,6 +100,43 @@ EOJSON
       "$GEOSERVER_URL/rest/workspaces/$workspace/datastores"
     echo " OK"
   fi
+}
+
+list_workspaces() {
+  curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces.json" \
+    | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+node = d.get("workspaces")
+if isinstance(node, dict):
+    for w in (node.get("workspace") or []):
+        print(w["name"])
+'
+}
+
+list_datastores_with_schema() {
+  local workspace=$1
+  curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores.json" \
+    | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+node = d.get("dataStores")
+if not isinstance(node, dict):
+    sys.exit(0)
+for ds in (node.get("dataStore") or []):
+    print(ds["name"])
+' | while read -r ds; do
+    [ -z "$ds" ] && continue
+    local schema
+    schema=$(curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$ds.json" \
+      | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+ce = {e["@key"]: e.get("$") for e in d.get("dataStore", {}).get("connectionParameters", {}).get("entry", [])}
+print(ce.get("schema") or "")
+')
+    printf '%s\t%s\n' "$ds" "$schema"
+  done
 }
 
 wait_for_geoserver
@@ -120,23 +161,33 @@ verify_credentials() {
 
 verify_credentials
 
-WORKSPACES=(
-  "demografia"
-  "desarrollo_social"
-  "economia"
-  "educacion"
-  "general"
-  "gobierno_y_ciudadania"
-  "recursos_y_calidad_de_vida"
-  "salud"
-  "seguridad_y_proteccion_ciudadana"
-)
-
 declare -A SCHEMA_MAP=(
   ["general"]="mapa_base"
 )
 
+mapfile -t WORKSPACES < <(list_workspaces)
+
+if [ ${#WORKSPACES[@]} -eq 0 ]; then
+  echo "Sin workspaces en GeoServer; nada que reapuntar." >&2
+  exit 0
+fi
+
 for ws in "${WORKSPACES[@]}"; do
-  schema="${SCHEMA_MAP[$ws]:-$ws}"
-  create_datastore "$ws" "$ws" "$schema"
+  ds_lines=$(list_datastores_with_schema "$ws")
+  if [ -z "$ds_lines" ]; then
+    echo "Workspace '$ws' sin datastores; skip."
+    continue
+  fi
+  while IFS=$'\t' read -r ds schema_actual; do
+    [ -z "$ds" ] && continue
+    schema_override="${SCHEMA_MAP[$ws]}"
+    if [ -n "$schema_override" ]; then
+      schema="$schema_override"
+    elif [ -n "$schema_actual" ]; then
+      schema="$schema_actual"
+    else
+      schema="$ws"
+    fi
+    create_datastore "$ws" "$ds" "$schema"
+  done <<< "$ds_lines"
 done
