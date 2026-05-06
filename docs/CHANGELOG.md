@@ -7,6 +7,21 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.17.0] - 2026-05-06
+
+### Agregado
+- Target `make init-datastores` para reapuntar los datastores al PostGIS configurado en
+  `.env` sin necesidad de hacer un `restore` completo.
+- Verificación robusta de disponibilidad del REST API (`/rest/workspaces.json` con
+  auth) además del endpoint `/web/`, evitando que el primer `PUT` se dispare antes de
+  que GeoServer esté completamente caliente.
+- Lógica de reintentos (3 intentos con backoff de 5s/10s) y timeout de 60s en las
+  operaciones `PUT`/`POST` de datastores.
+
+### Cambiado
+- `init-datastores.sh` ya no aborta todo el script si un datastore falla: acumula los
+  errores y los reporta al final con código de salida no-cero.
+
 ## [1.16.0] - 2026-05-06
 
 ### Agregado
