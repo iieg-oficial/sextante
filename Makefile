@@ -5,7 +5,7 @@ RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver
 RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
-.PHONY: help up down restart logs backup restore clean generate-config
+.PHONY: help up down restart build logs backup restore clean generate-config
 
 help:
 	@echo ""
@@ -13,6 +13,7 @@ help:
 	@echo ""  
 	@echo "  generate-config  	Genera server.xml y config/global.xml desde .env"
 	@echo "  up           		Levanta GeoServer e inicializa datastores"
+	@echo "  build        		Recrea contenedor con cambios de .env"
 	@echo "  down         		Detiene GeoServer"
 	@echo "  restart      		Reinicia GeoServer"
 	@echo "  logs         		Muestra logs en tiempo real"
@@ -51,6 +52,24 @@ up: generate-config
 	@docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" -X PUT -H "Content-Type: application/json" -d '{"global":{"settings":{"charset":"UTF-8"}}}' http://localhost:8080/geoserver/rest/settings > /dev/null 2>&1 || true
 	@python3 scripts/optimize-cultivos.py
 	@bash scripts/init-datastores.sh
+
+build: generate-config
+	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
+	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
+	docker compose up -d --force-recreate --build
+	@echo "Esperando que GeoServer esté listo..."
+	@attempts=0; max=24; \
+	until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
+		attempts=$$((attempts+1)); \
+		if [ $$attempts -ge $$max ]; then \
+			echo ""; \
+			echo "✗ GeoServer no respondió después de $$((max*5))s. Últimos logs:"; \
+			docker logs geoserver --tail 20 2>&1; \
+			exit 1; \
+		fi; \
+		printf '.'; sleep 5; \
+	done
+	@echo ""
 
 down:
 	docker compose down
