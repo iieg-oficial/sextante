@@ -7,6 +7,16 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.16.0] - 2026-05-06
+
+### Agregado
+- Sincronización automática de datastores para todos los workspaces y schemas
+  detectados en GeoServer (antes era una lista fija).
+
+### Cambiado
+- Modularización de la generación del payload del datastore (`build_datastore_payload`)
+  para reutilización entre creación y actualización.
+
 ## [1.15.0] - 2026-05-06
 
 ### Agregado
