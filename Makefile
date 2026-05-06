@@ -5,7 +5,7 @@ RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver
 RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
-.PHONY: help up down restart build logs backup restore clean generate-config
+.PHONY: help up down restart build logs backup restore clean generate-config init-datastores
 
 help:
 	@echo ""
@@ -19,6 +19,7 @@ help:
 	@echo "  logs         		Muestra logs en tiempo real"
 	@echo "  backup       		Respalda geoserver_data/ y plugins/ en $(BACKUP_DIR)/"
 	@echo "  restore      		Restaura el backup más reciente (o RESTORE_FILE=ruta)"
+	@echo "  init-datastores	Reapunta todos los datastores al PostGIS configurado en .env"
 	@echo "  clean        		Detiene contenedor y elimina geoserver_data/"
 	@echo ""
 	@echo "Ejemplos:"
@@ -141,6 +142,9 @@ restore: generate-config
 		echo "✓ Restauración completa."; \
 		echo ""; \
 	fi
+
+init-datastores: generate-config
+	@bash scripts/init-datastores.sh
 
 clean:
 	@echo "Advertencia: esto eliminará geoserver_data/ permanentemente."

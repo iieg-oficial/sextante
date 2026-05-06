@@ -1,6 +1,8 @@
 #!/bin/bash
 set +H
-set -e
+set -uo pipefail
+
+FAILED_DATASTORES=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -17,11 +19,22 @@ AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 wait_for_geoserver() {
   local max_attempts=24
   local attempt=0
-  echo "Esperando GeoServer..."
+  echo "Esperando GeoServer (web)..."
   until curl -sf --max-time 10 "$GEOSERVER_URL/web/" > /dev/null; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_attempts" ]; then
       echo "GeoServer no respondió después de $((max_attempts * 5)) segundos." >&2
+      exit 1
+    fi
+    sleep 5
+  done
+  echo "Esperando GeoServer (REST)..."
+  attempt=0
+  local http_code
+  until http_code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces.json") && [ "$http_code" = "200" ]; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "REST no respondió 200 después de $((max_attempts * 5)) segundos (último code=$http_code)." >&2
       exit 1
     fi
     sleep 5
@@ -71,6 +84,32 @@ build_datastore_payload() {
 EOJSON
 }
 
+datastore_request() {
+  local method=$1
+  local url=$2
+  local payload=$3
+  local max_retries=3
+  local attempt=0
+  local http_code
+  while [ "$attempt" -lt "$max_retries" ]; do
+    http_code=$(curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
+      -X "$method" \
+      -H "Content-Type: application/json" \
+      -d "$payload" \
+      "$url")
+    if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+      echo "$http_code"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    if [ "$attempt" -lt "$max_retries" ]; then
+      sleep $((attempt * 5))
+    fi
+  done
+  echo "$http_code"
+  return 1
+}
+
 create_datastore() {
   local workspace=$1
   local name=$2
@@ -83,22 +122,23 @@ create_datastore() {
   http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
     "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name.json")
 
+  local result
   if [ "$http_code" = "200" ]; then
-    echo "Actualizando datastore '$workspace:$name' (schema=$schema)..."
-    curl -s -f --max-time 30 -u "$AUTH" \
-      -XPUT \
-      -H "Content-Type: application/json" \
-      -d "$payload" \
-      "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name"
-    echo " OK"
+    printf "Actualizando datastore '%s:%s' (schema=%s)... " "$workspace" "$name" "$schema"
+    if result=$(datastore_request "PUT" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name" "$payload"); then
+      echo "OK"
+    else
+      echo "FAIL (http=$result)"
+      FAILED_DATASTORES+=("$workspace:$name")
+    fi
   else
-    echo "Creando datastore '$workspace:$name' (schema=$schema)..."
-    curl -s --max-time 30 -u "$AUTH" \
-      -XPOST \
-      -H "Content-Type: application/json" \
-      -d "$payload" \
-      "$GEOSERVER_URL/rest/workspaces/$workspace/datastores"
-    echo " OK"
+    printf "Creando datastore '%s:%s' (schema=%s)... " "$workspace" "$name" "$schema"
+    if result=$(datastore_request "POST" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores" "$payload"); then
+      echo "OK"
+    else
+      echo "FAIL (http=$result)"
+      FAILED_DATASTORES+=("$workspace:$name")
+    fi
   fi
 }
 
@@ -180,7 +220,7 @@ for ws in "${WORKSPACES[@]}"; do
   fi
   while IFS=$'\t' read -r ds schema_actual; do
     [ -z "$ds" ] && continue
-    schema_override="${SCHEMA_MAP[$ws]}"
+    schema_override="${SCHEMA_MAP[$ws]:-}"
     if [ -n "$schema_override" ]; then
       schema="$schema_override"
     elif [ -n "$schema_actual" ]; then
@@ -191,3 +231,12 @@ for ws in "${WORKSPACES[@]}"; do
     create_datastore "$ws" "$ds" "$schema"
   done <<< "$ds_lines"
 done
+
+if [ "${#FAILED_DATASTORES[@]}" -gt 0 ]; then
+  echo ""
+  echo "✗ Datastores con error (${#FAILED_DATASTORES[@]}):"
+  for ds in "${FAILED_DATASTORES[@]}"; do
+    echo "  - $ds"
+  done
+  exit 1
+fi
