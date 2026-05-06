@@ -7,10 +7,13 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.14.2] - 2026-05-06
+
+### Agregado
+- Archivo `LICENSE` MIT en la raíz para que GitHub detecte la licencia del proyecto.
+
 ### Cambiado
-- Reescritura del `CHANGELOG.md` con el historial completo desde el primer despliegue a
-  `production`.
-- `VERSION` actualizado de `0.1.0` a `1.14.1` para reflejar el versionado retroactivo.
+- Simplificación de la sección de versionado y mantenimiento del `CHANGELOG`.
 
 ## [1.14.1] - 2026-04-22
 
