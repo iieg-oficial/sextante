@@ -7,6 +7,37 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.18.0] - 2026-05-13
+
+### Agregado a `iieg-network` para alcanzar `acervo-minio` desde SLDs
+
+Habilitacion del shape `point` con `<ExternalGraphic>` en mariachi: GeoServer ahora rendera capas de puntos que apuntan a imagenes en el bucket Acervo `mapalab/simbologia/`.
+
+### Cambiado
+
+- `docker-compose.yml`: el servicio `geoserver` se agrega a `iieg-network` (external), ademas de `geonetwork` y `dataengine-network`. Asi el container resuelve `acervo-minio:9000` y puede hacer fetch de PNGs/SVGs al renderizar SLDs con `<ExternalGraphic>`.
+
+### Requiere paso manual post-deploy
+
+GeoServer 2.20+ bloquea por defecto cualquier URL externa en SLDs cuando no hay URLChecks configurados. Tras este deploy, ejecutar **una vez** contra cada entorno:
+
+```bash
+curl -u "$GEOSERVER_ADMIN_USER:$GEOSERVER_ADMIN_PASSWORD" \
+  -H 'Content-Type: application/json' -X POST \
+  "$GEOSERVER_URL/rest/urlchecks" -d '{
+    "regexUrlCheck": {
+      "name": "acervo_mapalab",
+      "description": "Acervo MinIO interno (bucket mapalab)",
+      "enabled": true,
+      "regex": "^http://acervo-minio:9000/mapalab/.+$"
+    }
+  }'
+```
+
+Sin esto, las capas de puntos con simbologia de emoji/imagen renderearan cuadrados grises (placeholder de ExternalGraphic fallido) en lugar del simbolo.
+
+---
+
 ## [1.17.0] - 2026-05-06
 
 ### Agregado

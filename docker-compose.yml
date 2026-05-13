@@ -44,6 +44,7 @@ services:
     networks:
       - geonetwork
       - dataengine-network
+      - iieg-network
 
 volumes:
   geoserver_data:
@@ -52,4 +53,6 @@ networks:
   geonetwork:
     driver: bridge
   dataengine-network:
+    external: true
+  iieg-network:
     external: true
