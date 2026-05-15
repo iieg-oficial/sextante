@@ -116,18 +116,29 @@ PostGIS no esta en el mismo host que GeoServer:
 - Staging: PostGIS y GeoServer comparten VM (`dataengine-primary` corre en mismo docker).
 - Produccion: PostGIS vive en S4 (4c/7.7GB dedicado a DataEngine). GeoServer en S3 se conecta a S4 via LAN.
 
-### JVM tuning (a partir de 1.19.0)
+### JVM tuning
 
-La imagen `kartoza/geoserver` no setea caps explicitos de heap ni Metaspace; sin tuning la JVM corre con defaults chicos. Sintoma observado en staging: Old gen al 99.85 % en 5 segundos, Metaspace al 99.32 %, concurrent GC robando CPU al render.
+Kartoza/geoserver tiene su propio bloque `GEOSERVER_OPTS` en `/scripts/entrypoint.sh` que ya define `-Xms`, `-Xmx`, `-XX:+UseG1GC`, Marlin renderer, encoding y otros 30+ flags. Luego concatena: `export JAVA_OPTS="${JAVA_OPTS} ${GEOSERVER_OPTS}"`. Meter `-Xms`/`-Xmx`/`-XX:+UseG1GC` raw en `JAVA_OPTS` causa **doble definicion + parsing roto**: el JVM termina recibiendo `-Xmx2g-XX:MaxMetaspaceSize=512m` glued y falla con "Invalid maximum heap size" (observado 2026-05-15 en GCP).
 
-| Entorno | `JAVA_OPTS` recomendado |
+La forma correcta es usar las **variables nativas de kartoza**:
+
+| Variable | Equivalente JVM | Default kartoza |
+|---|---|---|
+| `INITIAL_MEMORY` | `-Xms` | `2G` |
+| `MAXIMUM_MEMORY` | `-Xmx` | `4G` |
+| `INITIAL_HEAP_OCCUPANCY_PERCENT` | `-XX:InitiatingHeapOccupancyPercent` | `45` |
+| `ADDITIONAL_JAVA_STARTUP_OPTIONS` | flags extras al final del comando | (vacio) |
+
+G1GC, Marlin y encoding ya estan activos. `-XX:MaxMetaspaceSize` **si** hay que agregarlo (kartoza no lo setea); va en `ADDITIONAL_JAVA_STARTUP_OPTIONS`.
+
+| Entorno | Configuracion |
 |---|---|
-| GCP Staging | `-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Xms1g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC` |
-| Produccion S3 | `-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Xms2g -Xmx8g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC` |
+| Local / GCP Staging (2c/8GB compartido) | `INITIAL_MEMORY=1G`, `MAXIMUM_MEMORY=2G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=512m` |
+| Produccion S3 (8c/15GB dedicado) | `INITIAL_MEMORY=2G`, `MAXIMUM_MEMORY=8G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=1g` |
 
 Validar con `docker exec geoserver jstat -gcutil 1 5s 5`. Old gen y Metaspace deben quedar muy por debajo del 90 % bajo carga normal.
 
-El `.env.example` lleva la version conservadora como default seguro; comentario inline explica la variante prod.
+El `.env.example` lleva placeholders; los valores recomendados estan en el comentario inline. `docker-compose.yml` pasa las tres variables al contenedor con defaults seguros (`INITIAL_MEMORY:-2G`, `MAXIMUM_MEMORY:-4G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS:-`).
 
 ---
 

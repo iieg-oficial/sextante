@@ -7,6 +7,43 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.20.0] - 2026-05-15
+
+### Refactor del tuning JVM: usar variables nativas de kartoza
+
+El tuning aplicado en 1.19.0 metia `-Xms`/`-Xmx`/`-XX:+UseG1GC`/`-Dfile.encoding` directo en `JAVA_OPTS`. Eso colisionaba con el bloque `GEOSERVER_OPTS` interno de kartoza (`scripts/entrypoint.sh:55-100`), que ya define exactamente esos mismos flags y luego concatena `export JAVA_OPTS="${JAVA_OPTS} ${GEOSERVER_OPTS}"`. La doble definicion mas el parsing del concatenado produjo `Invalid maximum heap size: -Xmx2g-XX:MaxMetaspaceSize=512m` al arrancar (observado en GCP staging 2026-05-15: dos `-Xmx`, dos `-XX:+UseG1GC`, espacios perdidos en algun punto del pipeline catalina.sh).
+
+### Cambiado
+
+- **`docker-compose.yml`**: removida `JAVA_OPTS: ${JAVA_OPTS}` del bloque `environment`. Agregadas `INITIAL_MEMORY`, `MAXIMUM_MEMORY` y `ADDITIONAL_JAVA_STARTUP_OPTIONS` con defaults explicitos (`2G`, `4G`, vacio) — son las variables que kartoza expone para tunear heap y flags extras sin tocar `JAVA_OPTS`.
+- **`.env`** (instancia con `PROXY_HOST=10.25.7.17`, destino produccion S3): `INITIAL_MEMORY=2G`, `MAXIMUM_MEMORY=8G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=1g`. El `-XX:+UseG1GC` y el encoding ya los pone kartoza por default.
+- **`.env.example`**: placeholders `<initial_memory>`, `<maximum_memory>`, `<additional_java_opts>` con bloque de comentario inline mostrando los valores recomendados para Local/Staging vs Produccion S3.
+
+### Requiere paso manual post-deploy
+
+En cada host donde tenia el `JAVA_OPTS` viejo, reemplazar:
+
+```
+JAVA_OPTS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Xms<X> -Xmx<Y> -XX:MaxMetaspaceSize=<Z> -XX:+UseG1GC"
+```
+
+por:
+
+```
+INITIAL_MEMORY=<X>
+MAXIMUM_MEMORY=<Y>
+ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=<Z>
+```
+
+y `make build` (o `docker compose up -d` con `--force-recreate`).
+
+### Notas
+
+- La unica flag extra que vale la pena agregar es `-XX:MaxMetaspaceSize` — kartoza no la setea y es la que dispara `OOM: Metaspace` con el tiempo. G1GC, Marlin, encoding ya estan activos por default.
+- Si necesitas mas flags exoticos en el futuro (perfiling, debug, etc.), agregalos a `ADDITIONAL_JAVA_STARTUP_OPTIONS` — kartoza los append al final del comando java.
+
+---
+
 ## [1.19.1] - 2026-05-15
 
 ### Agregado
