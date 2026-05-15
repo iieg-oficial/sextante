@@ -7,6 +7,28 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.19.0] - 2026-05-15
+
+### Tuning de la JVM de GeoServer
+
+Diagnostico en GCP staging mostro la JVM al limite: Old gen subiendo de 56 % a 99.85 % en 5 segundos, Metaspace al 99.32 % (a un par de class loads de un `OutOfMemoryError: Metaspace`), 16 ciclos de concurrent GC robando CPU al render. Causa raiz: la imagen `kartoza/geoserver` no setea caps explicitos de heap/Metaspace y el `JAVA_OPTS` que teniamos solo contenia flags de encoding, dejando la JVM al merced de defaults muy chicos para una carga raster real.
+
+### Cambiado
+
+- **`.env`** (instancia con `PROXY_HOST=10.25.7.17`, destino produccion S3): `JAVA_OPTS` ampliado con `-Xms2g -Xmx8g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC`. S3 es VM dedicada 8c/15GB y solo corre el contenedor de GeoServer (1.4 GB usados hoy de 15 disponibles segun `gateway-hub/docs/recursos-servidores.md`), por lo que el heap de 8 GB queda ~50 % de la VM y deja ~7 GB para page cache del kernel donde el OS pone los GeoTIFFs.
+- **`.env.example`** sustituido el placeholder `JAVA_OPTS=<>` por un valor conservador documentado (`-Xmx 2g`, apto para VM compartida tipo staging) con comentario explicando la variante aggressive para servidor dedicado. Cierra el agujero de "default invisible" que tenia el repo: cualquiera que clone y arranque desde el example obtiene caps explicitos en vez de quedar expuesto al `OOM: Metaspace`.
+
+### Requiere paso manual post-deploy
+
+- Reiniciar el contenedor en cada host donde aplique:
+  ```
+  docker compose -f /IIEG/geoserver/docker-compose.yml up -d
+  ```
+- En GCP staging (VM compartida 2c/8GB) el `.env` del host **no es este**; aplicar manualmente sobre ese host la version conservadora: `JAVA_OPTS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Xms1g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"`. Si subes el heap a 8 GB en GCP comprometes a PostGIS/Mariachi (recursos compartidos).
+- Validar con `docker exec geoserver jstat -gcutil 1`: Old gen y Metaspace deberian estabilizarse muy por debajo del 90 % bajo carga normal.
+
+---
+
 ## [1.18.0] - 2026-05-13
 
 ### Agregado a `iieg-network` para alcanzar `acervo-minio` desde SLDs
