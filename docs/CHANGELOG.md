@@ -7,6 +7,16 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.20.1] - 2026-05-15
+
+### Corregida la metodologia de validacion JVM post-tuning
+
+Las dos secciones de `docs/context.md` que recomendaban validar con `docker exec geoserver jstat -gcutil 1` daban una guia engañosa. La columna `M` de `gcutil` reporta `used / committed`, **no `used / max`**: muestra 99 % cuando la JVM apenas crecio Metaspace y todavia tiene mucho headroom hasta `MaxMetaspaceSize`. Tras aplicar el tuning de 1.20.0 en GCP staging y ver `M=99 %` con valores correctos (`MU=137 MB` de 512 MB cap), confirmamos que el percentage es enganoso y el chequeo real esta en los numeros absolutos.
+
+#### Changed
+
+- **`docs/context.md`** (seccion "JVM tuning" y subseccion de despliegue): cambiada la recomendacion a `jstat -gc 1` (sin `util`). Documentadas las columnas relevantes (`OC`/`OU`, `MC`/`MU` en KB) y el indicador clave `FGC = 0`. Explicito que `MU` muy por debajo de `MaxMetaspaceSize` con `OU < OC` con margen es la lectura sana, no el porcentaje de `gcutil`.
+
 ## [1.20.0] - 2026-05-15
 
 ### Refactor del tuning JVM: usar variables nativas de kartoza

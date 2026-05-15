@@ -136,7 +136,7 @@ G1GC, Marlin y encoding ya estan activos. `-XX:MaxMetaspaceSize` **si** hay que 
 | Local / GCP Staging (2c/8GB compartido) | `INITIAL_MEMORY=1G`, `MAXIMUM_MEMORY=2G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=512m` |
 | Produccion S3 (8c/15GB dedicado) | `INITIAL_MEMORY=2G`, `MAXIMUM_MEMORY=8G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS=-XX:MaxMetaspaceSize=1g` |
 
-Validar con `docker exec geoserver jstat -gcutil 1 5s 5`. Old gen y Metaspace deben quedar muy por debajo del 90 % bajo carga normal.
+Validar con `docker exec geoserver jstat -gc 1`. Las columnas relevantes son `OC`/`OU` (Old capacity/used) y `MC`/`MU` (Metaspace capacity/used) en KB. Usar `-gc`, NO `-gcutil`: el porcentaje `M` de `gcutil` reporta `used / committed`, no `used / max`, por lo que puede mostrar 99 % cuando la JVM apenas creció Metaspace mucho por debajo del cap. Lo que indica salud es `MU << MaxMetaspaceSize` (ej. 137 MB de 512 MB), `OU < OC` con margen, y **`FGC = 0`** (cero Full GC desde el arranque).
 
 El `.env.example` lleva placeholders; los valores recomendados estan en el comentario inline. `docker-compose.yml` pasa las tres variables al contenedor con defaults seguros (`INITIAL_MEMORY:-2G`, `MAXIMUM_MEMORY:-4G`, `ADDITIONAL_JAVA_STARTUP_OPTIONS:-`).
 
@@ -348,7 +348,7 @@ make up        # Si bootstrap limpio
 Tras el restore, validar:
 1. `docker logs geoserver --tail 50` — sin errores fatales
 2. `curl -u admin:pwd http://localhost:8080/geoserver/rest/workspaces.json` — lista workspaces
-3. `docker exec geoserver jstat -gcutil 1` — Old gen y Metaspace estables <90 %
+3. `docker exec geoserver jstat -gc 1` — verificar `MU < MaxMetaspaceSize` y `FGC = 0` (ver seccion "JVM tuning" para detalle de columnas)
 
 ---
 
