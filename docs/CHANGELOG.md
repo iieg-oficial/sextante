@@ -7,6 +7,12 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.19.1] - 2026-05-15
+
+### Agregado
+
+- **`docs/context.md`**: documento de contexto del proyecto siguiendo la convencion del ecosistema (`gateway-hub`, `mapalab`, `dataengine`, etc.). Condensa: stack, integracion con mariachi/dataengine/mapalab/gateway-hub/acervo, estructura del repo, dimensionamiento por entorno (staging vs S3), tuning JVM aplicado en 1.19.0, variables de entorno, flujo de datastores (`init-datastores.sh`), limites de ControlFlow (`controlflow.properties`), configuracion de GWC y por que `ImageWMS` del visor no la aprovecha, capas de cache combinadas, plugins, redes Docker, Makefile, despliegue en host nuevo y errores frecuentes documentados. Cierra el hueco de un context.md que faltaba versus los otros repos del ecosistema.
+
 ## [1.19.0] - 2026-05-15
 
 ### Tuning de la JVM de GeoServer
