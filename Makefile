@@ -5,7 +5,7 @@ RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver
 RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
-.PHONY: help up down restart build logs backup restore clean generate-config init-datastores
+.PHONY: help up down restart build logs backup restore clean generate-config init-datastores version-json
 
 help:
 	@echo ""
@@ -20,6 +20,7 @@ help:
 	@echo "  backup       		Respalda geoserver_data/ y plugins/ en $(BACKUP_DIR)/"
 	@echo "  restore      		Restaura el backup más reciente (o RESTORE_FILE=ruta)"
 	@echo "  init-datastores	Reapunta todos los datastores al PostGIS configurado en .env"
+	@echo "  version-json    	Regenerar version-api/html/version.json desde VERSION"
 	@echo "  clean        		Detiene contenedor y elimina geoserver_data/"
 	@echo ""
 	@echo "Ejemplos:"
@@ -33,7 +34,7 @@ generate-config:
 		envsubst < config/global.xml.template > config/global.xml
 	@echo "Archivos generados: server.xml, config/global.xml"
 
-up: generate-config
+up: generate-config version-json
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d
@@ -54,7 +55,7 @@ up: generate-config
 	@python3 scripts/optimize-cultivos.py
 	@bash scripts/init-datastores.sh
 
-build: generate-config
+build: generate-config version-json
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d --force-recreate --build
@@ -75,8 +76,16 @@ build: generate-config
 down:
 	docker compose down
 
-restart:
+restart: version-json
 	docker compose restart
+
+version-json:
+	@SERVICE=geoserver; \
+	 VERSION=$$(tr -d '[:space:]' < VERSION); \
+	 RELEASED_AT=$$(grep -m1 "^## \[$$VERSION\]" docs/CHANGELOG.md | sed -E 's/^## \[[^]]+\] - ([0-9-]+).*/\1/'); \
+	 if [ -z "$$RELEASED_AT" ]; then echo "WARN: no se encontro entrada '## [$$VERSION] - YYYY-MM-DD' en docs/CHANGELOG.md" >&2; fi; \
+	 printf '{"version":"%s","service":"%s","released_at":"%s"}\n' "$$VERSION" "$$SERVICE" "$$RELEASED_AT" > version-api/html/version.json; \
+	 echo "version.json -> $$VERSION ($$SERVICE, $$RELEASED_AT)"
 
 logs:
 	docker compose logs -f

@@ -39,7 +39,12 @@ geoserver/
 │   └── security/
 │       └── csp.xml                  # Content Security Policy
 ├── scripts/
+│   ├── entrypoint-wrapper.sh        # Procesa server.xml/global.xml desde templates
 │   └── init-datastores.sh           # Crea datastores con SSL en PostgreSQL
+├── version-api/                     # Sidecar: sirve /ontoy en :8088 (iieg-network)
+│   ├── Dockerfile
+│   ├── ontoy_server.py              # http.server stdlib (sin deps)
+│   └── html/version.json            # Generado por `make version-json`
 ├── .env.example                     # Template de variables de entorno
 ├── geoserver_data/                  # Data dir persistente (no versionado)
 ├── plugins/                         # JARs adicionales (no versionado)

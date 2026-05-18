@@ -41,11 +41,24 @@ services:
       - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
       - ./fonts:/usr/share/fonts/custom:ro
-      - ./VERSION:/opt/geoserver/VERSION:ro
-      - ./docs/CHANGELOG.md:/opt/geoserver/CHANGELOG.md:ro
     networks:
       - geonetwork
       - dataengine-network
+      - iieg-network
+
+  version-api:
+    build: ./version-api
+    container_name: geoserver-version-api
+    restart: unless-stopped
+    volumes:
+      - ./VERSION:/app/VERSION:ro
+      - ./version-api/html/version.json:/app/version.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/ontoy').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
       - iieg-network
 
 volumes:

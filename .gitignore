@@ -6,3 +6,4 @@ backups/*.tar.gz
 restore/*.tar.gz
 server.xml
 config/global.xml
+version-api/html/version.json

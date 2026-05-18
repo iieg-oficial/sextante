@@ -7,6 +7,27 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.21.0] - 2026-05-18
+
+### Endpoint `/ontoy` via sidecar `version-api`
+
+El `entrypoint-wrapper.sh` escribia el JSON en `/usr/local/tomcat/webapps/ROOT/ontoy.json`, pero esa webapp no existe en `kartoza/geoserver:2.27.0` (solo esta desplegada `webapps/geoserver/`), asi que cualquier `GET /ontoy` respondia 404. La consecuencia: `mariachi` mostraba una version hardcoded (`static_version` en `platforms_config.py`) que se desactualizaba cada release del ecosistema.
+
+#### Agregado
+
+- **`version-api/`**: nuevo container sidecar (`python:3.13-alpine` + `ontoy_server.py` 47 lineas stdlib, sin deps) que sirve `GET /ontoy` en puerto interno `8088`. Mismo patron que `dataengine/jobs/ontoy_server.py`.
+- **`docker-compose.yml`**: servicio `version-api` conectado solo a `iieg-network`. Monta `./VERSION` y `./version-api/html/version.json` read-only. Healthcheck contra `http://127.0.0.1:8088/ontoy`.
+- **`Makefile`**: target `version-json` que regenera `version-api/html/version.json` leyendo `VERSION` y la fecha de `docs/CHANGELOG.md`. Hookeado a `up`, `build` y `restart` como prerequisito.
+
+#### Cambiado
+
+- **`scripts/entrypoint-wrapper.sh`**: removida la generacion de `webapps/ROOT/ontoy.json` (no servia para nada). El wrapper se reduce a procesar `server.xml` y `global.xml` desde sus templates.
+- **`docker-compose.yml`** (servicio `geoserver`): removidos los mounts de `./VERSION` y `./docs/CHANGELOG.md` dentro del container; el sidecar es ahora quien necesita esos archivos.
+
+#### Notas
+
+`gateway-hub` debe actualizarse en paralelo para que `/geoserver/ontoy` deje de responder con el hardcode `1.14.1` y haga `proxy_pass` al sidecar; `mariachi` debe eliminar el `static_version: "1.20.1"` de `geoserver` en `platforms_config.py`.
+
 ## [1.20.1] - 2026-05-15
 
 ### Corregida la metodologia de validacion JVM post-tuning
