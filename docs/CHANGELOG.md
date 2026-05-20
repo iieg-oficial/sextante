@@ -7,6 +7,28 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.22.0] - 2026-05-20
+
+### URLChecks idempotentes provisionados en `make up`
+
+Mariachi necesita que GeoServer permita resolver `<ExternalGraphic>` apuntando a buckets internos del Acervo (SeaweedFS) cuando rendera SLDs. GeoServer 2.20+ bloquea todas las URLs externas en SLDs si no hay `URLCheck` definido. Hasta ahora se configuraba manualmente vía `curl` post-deploy, lo que se olvidaba con cada despliegue limpio.
+
+#### Agregado
+
+- **`scripts/setup-urlchecks.sh`** (nuevo): script idempotente que provisiona los URLChecks vía REST API (`POST /rest/urlchecks`). Trata `HTTP 201` (creado) y `HTTP 409` (ya existe) como éxito; falla explícito en cualquier otro código. Sin output cuando todos ya existen. Define dos checks por defecto:
+  - `acervo_mapalab` → `^http://acervo-seaweedfs:8333/mapalab/.+$` (catálogo de símbolos del editor SLD de mariachi-admin).
+  - `acervo_iieg_leyendas` → `^http://acervo-seaweedfs:8333/iieg/leyendas/.+$` (SVGs subidos por el admin de mariachi al bucket `iieg`).
+
+#### Cambiado
+
+- **`Makefile`** (target `up`): se invoca `bash scripts/setup-urlchecks.sh` después de `init-datastores.sh`. Comentario marcado como **PENDIENTE** para remover cuando los URLChecks se persistan declarativamente vía `geoserver_data/` en el bootstrap de producción.
+
+#### Notas operativas
+
+- En despliegues nuevos (`make build` o volumen `geoserver_data` recién creado): los dos URLChecks se crean automáticamente en el primer `make up`.
+- En despliegues existentes con URLChecks ya configurados: el script no hace nada (POST devuelve 409).
+- Si en producción Acervo es accesible vía otro hostname/HTTPS, ampliar la lista `URLCHECKS` en el script.
+
 ## [1.21.0] - 2026-05-18
 
 ### Endpoint `/ontoy` via sidecar `version-api`
