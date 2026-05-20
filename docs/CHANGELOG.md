@@ -7,6 +7,26 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.22.1] - 2026-05-20
+
+### `make backup` tolera directorios con permisos `drw-r--r--`
+
+La kartoza image `2.27.0` ocasionalmente crea directorios dentro de `data_dir` con umask malo (sin bit `x` para el dueño). Esto rompía `make backup` en dos puntos:
+
+1. **`tar -cf -` dentro del container** fallaba con `Cannot stat: Permission denied` al intentar leer esos directorios.
+2. **`rm -rf .backup_staging`** en el host fallaba también si la corrida previa había extraído dirs con esos mismos permisos al staging.
+
+#### Cambiado
+
+- **`Makefile` (target `backup`)** agrega dos guards selectivos antes de los puntos de fallo, ambos marcados como **PENDIENTE** para remover cuando se arregle el umask del entrypoint del container:
+  - `docker exec geoserver find /opt/geoserver/data_dir -type d ! -perm -u+x -exec chmod u+rx {} +` — arregla solo los directorios sin bit `x` del dueño antes del `tar`, sin tocar permisos de "other" ni archivos.
+  - `chmod -R u+rwX .backup_staging 2>/dev/null || true` — destraba el staging heredado de corridas previas fallidas antes del `rm -rf`. La `X` mayúscula aplica `x` solo a directorios.
+
+#### Notas operativas
+
+- Ambos chmods son no-op en entornos saludables (el `find` no encuentra dirs problemáticos).
+- El fix permanente (umask `0022` en `scripts/entrypoint-wrapper.sh`) queda pendiente para una iteración posterior.
+
 ## [1.22.0] - 2026-05-20
 
 ### URLChecks idempotentes provisionados en `make up`
