@@ -7,6 +7,29 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.23.0] - 2026-05-22
+
+### Habilitar extension WPS Download
+
+Se monta la extension oficial `wps-download` (GeoServer 2.27.0) en el classpath del contenedor. La imagen `kartoza/geoserver:2.27.0` trae el WPS base (~194 procesos: vector, raster, geometry) pero **no** trae el plugin de descarga, que es el que permite exportar resultados de procesos como archivos descargables grandes vía `gs:Download` y `gs:DownloadEstimator` con soporte sync/async.
+
+#### Agregado
+
+- **`plugins/gs-wps-download-2.27.0.jar`**, **`plugins/jcodec-0.2.3.jar`**, **`plugins/jcodec-javase-0.2.3.jar`**: extraídos del zip oficial `geoserver-2.27.0-wps-download-plugin.zip` del SourceForge de GeoServer. `jcodec` es dependencia transitiva (soporta export a MP4 vía `gs:DownloadAnimation`).
+- **`docker-compose.yml`**: tres bind mounts `:ro` adicionales al servicio `geoserver` mapeando los JARs anteriores a `/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/`.
+- **`docs/plugins.md`** (nuevo): catálogo completo de extensiones disponibles, dividido en (1) bundled en la imagen kartoza, (2) bind-mounted desde `plugins/`, (3) recomendados a futuro para el ecosistema IIEG. Incluye el procedimiento manual para agregar plugins nuevos y reglas sobre versionado, duplicados y dependencias transitivas.
+
+#### Cambiado
+
+- **`docs/context.md`** sección `## Plugins`: acortada, ahora apunta a `plugins.md` para el detalle. Menciona explícitamente el plugin `wps-download` recién instalado y las extensiones bundled (WPS base, monitor, control-flow, gwc, etc.) sin duplicar el inventario.
+
+#### Notas operativas
+
+- WPS aporta 4 procesos nuevos al `GetCapabilities`: `gs:Download`, `gs:DownloadEstimator`, `gs:DownloadMap`, `gs:DownloadAnimation`. Total: 198 procesos.
+- Sin caps explícitos de tamaño/features. Si en algún momento conviene acotarlos, crear `geoserver_data/wps-download.xml` con `<maxFeatures>`, `<rasterSizeLimits>`, etc.
+- Las descargas async respetan el límite global `user.ows.wps.execute=1000/d;30s` ya definido en `controlflow.properties`.
+- Los JARs viven en `plugins/` (gitignored). La persistencia entre hosts queda cubierta por el `tar.gz` de `make backup`/`make restore`; el clone limpio sin backup aún no descarga automáticamente — eso se resuelve en `1.24.0`.
+
 ## [1.22.1] - 2026-05-20
 
 ### `make backup` tolera directorios con permisos `drw-r--r--`

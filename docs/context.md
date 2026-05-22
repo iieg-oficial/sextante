@@ -283,15 +283,14 @@ Capa por capa:
 
 ## Plugins
 
-`plugins/` se monta a `/opt/geoserver/webapps/geoserver/WEB-INF/lib/` (classpath de Tomcat). JARs presentes:
+`plugins/` se monta a `/opt/geoserver/webapps/geoserver/WEB-INF/lib/` (classpath de Tomcat). Inventario actual:
 
-- `gs-geopkg-output-core-2.27.0.jar`
-- `gs-geopkg-output-wfs-2.27.0.jar`
-- `gs-geopkg-output-wms-2.27.0.jar`
+- GeoPackage Output (3 JARs): habilita `OUTPUTFORMAT=application/geopackage` en WMS/WFS.
+- WPS Download (`gs-wps-download` + `jcodec` x2): procesos `gs:Download` y `gs:DownloadEstimator` para descargas async grandes de raster/vector.
 
-Habilitan `OUTPUTFORMAT=application/geopackage` en WFS GetFeature y WMS GetMap. Permite descargar capas en `.gpkg` (formato espacial moderno, soportado en QGIS y GDAL).
+La imagen kartoza ya trae bundled: `wps` (base, ~194 procesos), `monitor`, `control-flow`, `csp`, `inspire`, `gwc`, `vectortiles`, `gdal`, `csw`, entre otros — no requieren instalacion manual.
 
-Para agregar un plugin nuevo: bajar el JAR oficial de la version 2.27.0 que matchee, ponerlo en `plugins/`, `make build`. La imagen kartoza ya trae `monitor`, `control-flow`, `csp`, `inspire`, `wps`, `gwc`, entre otros — no requiere instalacion manual.
+Detalle completo (inventario bundled, JARs locales, recomendaciones futuras, procedimiento de instalacion) en [plugins.md](plugins.md).
 
 ---
 

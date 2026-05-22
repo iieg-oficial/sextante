@@ -34,6 +34,9 @@ services:
       - ./plugins/gs-geopkg-output-core-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-core-2.27.0.jar:ro
       - ./plugins/gs-geopkg-output-wfs-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-wfs-2.27.0.jar:ro
       - ./plugins/gs-geopkg-output-wms-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-wms-2.27.0.jar:ro
+      - ./plugins/gs-wps-download-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-wps-download-2.27.0.jar:ro
+      - ./plugins/jcodec-0.2.3.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/jcodec-0.2.3.jar:ro
+      - ./plugins/jcodec-javase-0.2.3.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/jcodec-javase-0.2.3.jar:ro
       - ./server.xml.template:/opt/geoserver/server.xml.template:ro
       - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
       - ./config/global.xml.template:/opt/geoserver/global.xml.template:ro
