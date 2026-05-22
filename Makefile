@@ -5,7 +5,7 @@ RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver
 RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
-.PHONY: help up down restart build logs backup restore clean generate-config init-datastores version-json
+.PHONY: help up down restart build logs backup restore clean generate-config init-datastores version-json plugins-fetch
 
 help:
 	@echo ""
@@ -20,6 +20,7 @@ help:
 	@echo "  backup       		Respalda geoserver_data/ y plugins/ en $(BACKUP_DIR)/"
 	@echo "  restore      		Restaura el backup más reciente (o RESTORE_FILE=ruta)"
 	@echo "  init-datastores	Reapunta todos los datastores al PostGIS configurado en .env"
+	@echo "  plugins-fetch  	Descarga JARs de extensions faltantes a plugins/ (idempotente)"
 	@echo "  version-json    	Regenerar version-api/html/version.json desde VERSION"
 	@echo "  clean        		Detiene contenedor y elimina geoserver_data/"
 	@echo ""
@@ -34,7 +35,7 @@ generate-config:
 		envsubst < config/global.xml.template > config/global.xml
 	@echo "Archivos generados: server.xml, config/global.xml"
 
-up: generate-config version-json
+up: generate-config version-json plugins-fetch
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d
@@ -57,7 +58,7 @@ up: generate-config version-json
 	# PENDIENTE: remover cuando los URLChecks se provisionen via geoserver_data en bootstrap de produccion.
 	@bash scripts/setup-urlchecks.sh
 
-build: generate-config version-json
+build: generate-config version-json plugins-fetch
 	@cp -f config/global.xml geoserver_data/global.xml 2>/dev/null && chmod 666 geoserver_data/global.xml || true
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d --force-recreate --build
@@ -160,6 +161,9 @@ restore: generate-config
 
 init-datastores: generate-config
 	@bash scripts/init-datastores.sh
+
+plugins-fetch:
+	@bash scripts/fetch-plugins.sh
 
 clean:
 	@echo "Advertencia: esto eliminará geoserver_data/ permanentemente."

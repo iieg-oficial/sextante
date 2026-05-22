@@ -95,41 +95,88 @@ Extensiones que **NO** aplican al despliegue actual:
 
 ---
 
-## Como agregar un plugin nuevo
+## Auto-fetch en bootstrap
+
+`plugins/` esta gitignored, asi que un `git clone` limpio no trae los JARs. Para evitar tener que copiarlos manualmente entre hosts, hay un script idempotente que los descarga del SourceForge oficial:
+
+- Script: [scripts/fetch-plugins.sh](../scripts/fetch-plugins.sh)
+- Target: `make plugins-fetch`
+- Integracion: corre automaticamente como prerequisito de `make up` y `make build`.
+
+El script lleva un manifiesto declarativo inline con la lista de extensions a instalar y los JARs esperados de cada una. Para cada extension:
+
+1. Si **todos** los JARs ya estan en `plugins/`, hace skip.
+2. Si **al menos uno** falta, descarga el zip oficial, extrae unicamente los JARs declarados (no licencias ni README), y los coloca en `plugins/`.
+3. No sobreescribe JARs ya presentes (`unzip -o` se invoca solo para los faltantes).
+
+Esto cubre dos casos:
+
+- **Clone limpio en host nuevo**: `make up` baja todo automaticamente.
+- **JAR borrado o corrupto**: re-ejecutar `make plugins-fetch` lo recupera sin tocar el resto.
+
+Para validar:
 
 ```bash
-# 1. Bajar el zip de la extension (debe ser 2.27.0)
-curl -sL -o /tmp/ext.zip \
-  "https://sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/geoserver-2.27.0-<nombre>-plugin.zip/download"
-
-# 2. Extraer SOLO los JARs (no licencias ni README)
-cd /IIEG/geoserver/plugins
-unzip -o -j /tmp/ext.zip "*.jar"
-
-# 3. Verificar que los JARs no esten ya en la imagen
-for f in *.jar; do
-  docker exec geoserver test -f /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/$f \
-    && echo "DUPLICADO: $f (ya en imagen, borralo)" \
-    || echo "OK: $f"
-done
-
-# 4. Agregar bind mounts a docker-compose.yml en el bloque volumes del servicio geoserver:
-#    - ./plugins/<jar>:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/<jar>:ro
-
-# 5. Recrear contenedor
-make build
-
-# 6. Verificar carga
-docker logs geoserver --tail 100 | grep -iE "error|exception" | head -20
-curl -s "http://localhost:8080/geoserver/web/" -o /dev/null -w "%{http_code}\n"
+make plugins-fetch                                # primera vez: descarga
+make plugins-fetch                                # segunda vez: [skip] todos los plugins
+rm plugins/jcodec-0.2.3.jar                       # simular perdida
+make plugins-fetch                                # solo baja lo faltante
 ```
+
+---
+
+## Como agregar un plugin nuevo
+
+1. **Verificar disponibilidad** en [sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/](https://sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/). Anotar el nombre exacto del zip (sin el sufijo `-plugin.zip`).
+
+2. **Descargar localmente** una vez para listar los JARs reales:
+
+   ```bash
+   curl -sL -o /tmp/ext.zip \
+     "https://sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/geoserver-2.27.0-<nombre>-plugin.zip/download"
+   unzip -l /tmp/ext.zip | grep '\.jar$'
+   ```
+
+3. **Filtrar duplicados con la imagen kartoza**:
+
+   ```bash
+   for f in <jars-del-zip>; do
+     docker exec geoserver test -f /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/$f \
+       && echo "DUPLICADO: $f" || echo "OK: $f"
+   done
+   ```
+
+   Los duplicados deben **excluirse** del manifest (sobreescribirlos provoca `ClassCastException` si las versiones no matchean exactamente).
+
+4. **Agregar al manifest** en [scripts/fetch-plugins.sh](../scripts/fetch-plugins.sh):
+
+   ```bash
+   PLUGINS=(
+       ...
+       "<nombre>|<jar1>,<jar2>,..."
+   )
+   ```
+
+5. **Agregar bind mounts** en `docker-compose.yml` para cada JAR nuevo:
+
+   ```yaml
+   - ./plugins/<jar>:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/<jar>:ro
+   ```
+
+6. **Recrear contenedor** y verificar:
+
+   ```bash
+   make build
+   docker logs geoserver --tail 100 | grep -iE "error|exception"
+   ```
+
+7. **Documentar** el plugin en este archivo (seccion 2) y en `docs/CHANGELOG.md`.
 
 ### Reglas
 
 - **Solo JARs 2.27.0**. Mezclar versiones rompe el classpath silenciosamente (NoSuchMethodError).
-- **No duplicar lo que ya trae la imagen** (`gs-wps-core`, `gs-monitor-core`, etc.). Sobreescribir un JAR bundled con un bind mount provoca `ClassCastException` si las versiones no matchean exactamente.
+- **No duplicar lo que ya trae la imagen** (`gs-wps-core`, `gs-monitor-core`, etc.).
 - **Las dependencias transitivas del zip son obligatorias**. Ejemplo: `wps-download` requiere `jcodec` aunque no se use animaciones — sin el JAR el plugin no carga.
-- Documentar cada nuevo plugin en este archivo (seccion 2) y en `docs/CHANGELOG.md`.
 
 ---
 
@@ -141,7 +188,10 @@ curl -s "http://localhost:8080/geoserver/web/" -o /dev/null -w "%{http_code}\n"
 - `make restore` → borra `plugins/` y `geoserver_data/`, restaura ambos desde el tar.gz mas reciente.
 - `make clean` → borra `plugins/` (destructivo, con confirmacion).
 
-Esto significa que al desplegar en un host nuevo restaurando un backup, **no hace falta volver a bajar los JARs**: vienen en el tar.gz. Solo asegurarse que el `docker-compose.yml` versionado tenga los mismos bind mounts.
+Dos caminos para que los JARs persistan en un host nuevo:
+
+1. **Con backup previo**: `make restore` extrae `plugins/` del tar.gz junto al data_dir.
+2. **Sin backup**: `make up` corre `plugins-fetch` automaticamente y los baja de SourceForge segun el manifest en [scripts/fetch-plugins.sh](../scripts/fetch-plugins.sh).
 
 ---
 

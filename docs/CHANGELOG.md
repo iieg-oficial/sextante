@@ -7,6 +7,28 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.24.0] - 2026-05-22
+
+### Auto-fetch idempotente de plugins en `make up`
+
+`plugins/` está gitignored, por lo que un `git clone` limpio no traía los JARs declarados como bind mounts en `docker-compose.yml`. Hasta ahora la única forma de tenerlos en un host nuevo era restaurar un `tar.gz` de backup; sin él, Docker creaba directorios vacíos en lugar de los JARs y GeoServer arrancaba silenciosamente sin las extensiones (geopkg-output, wps-download).
+
+#### Agregado
+
+- **`scripts/fetch-plugins.sh`** (nuevo): script idempotente que descarga las extensiones declaradas en su manifiesto inline (`PLUGINS=(...)`). Para cada extension valida si todos los JARs esperados están presentes en `plugins/`; si falta al menos uno, baja el zip oficial de `sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/`, extrae **solo** los JARs declarados (no licencias ni README) y los coloca en `plugins/`. JARs ya presentes no se sobreescriben. Manifest inicial cubre `geopkg-output` y `wps-download` (6 JARs en total, ~2.3 MB).
+
+#### Cambiado
+
+- **`Makefile`**: nuevo target `plugins-fetch` que invoca el script. Encadenado como prerequisito de los targets `up` y `build`, de forma que cualquier despliegue limpio descarga los plugins faltantes antes del `docker compose up`. Agregado también al `help`.
+- **`docs/plugins.md`**: nueva sección `## Auto-fetch en bootstrap` explicando el flujo. Sección `## Como agregar un plugin nuevo` reescrita en 7 pasos para reflejar el flujo via manifest (no manual). Sección `## Backup y restore` actualizada para listar los dos caminos de persistencia (backup vs auto-fetch).
+
+#### Notas operativas
+
+- **Idempotencia**: ejecuciones repetidas con todos los JARs presentes imprimen `[skip] <nombre>: N JAR(s) ya presentes` y no tocan disco.
+- **Recuperación selectiva**: borrar un JAR individual y re-ejecutar `make plugins-fetch` descarga solo lo faltante.
+- **Dependencia**: SourceForge debe estar accesible la primera vez. En entornos sin red, el camino via `make restore` desde un `tar.gz` sigue siendo válido.
+- **Para agregar un plugin nuevo**: editar el array `PLUGINS=(...)` en `scripts/fetch-plugins.sh`, agregar bind mounts en `docker-compose.yml`, `make build`. Detalle paso a paso en `docs/plugins.md`.
+
 ## [1.23.0] - 2026-05-22
 
 ### Habilitar extension WPS Download
