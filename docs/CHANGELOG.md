@@ -7,6 +7,22 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.24.2] - 2026-05-22
+
+### Fallback a `python3` cuando `unzip` no está instalado
+
+El host GCP staging no tiene `unzip` instalado, por lo que `make plugins-fetch` (introducido en 1.24.0) no podía extraer los JARs descargados (`scripts/fetch-plugins.sh: line 58: unzip: command not found`). Aunque desde 1.24.1 esto ya no abortaba el orquestador del ecosistema, los plugins igual no se instalaban en GCP.
+
+#### Cambiado
+
+- **`scripts/fetch-plugins.sh`**: nueva función `extract_jar_from_zip` que intenta primero con `unzip` (rápido, formato nativo) y si no está disponible cae automáticamente a un snippet inline de `python3 -c "import zipfile..."`. Python3 ya es una dependencia hard del repo (`scripts/optimize-cultivos.py`), así que el fallback no agrega nuevas dependencias. Soporta JARs ubicados en cualquier subdirectorio dentro del zip (busca por `basename`).
+
+#### Notas operativas
+
+- En hosts con `unzip` (la mayoría de Debian/Ubuntu por default): comportamiento idéntico a antes.
+- En hosts sin `unzip` (GCP staging): se usa Python3 transparentemente. Se prueba en CI/local removiendo `unzip` del PATH y validando que los JARs se extraen igual.
+- Si ninguno de los dos está disponible, el script emite `[warn] ni 'unzip' ni 'python3' estan disponibles para extraer JARs` y termina con `exit 0` (sin abortar el orquestador, gracias a 1.24.1).
+
 ## [1.24.1] - 2026-05-22
 
 ### `plugins-fetch` no aborta el flujo cuando una extension falla

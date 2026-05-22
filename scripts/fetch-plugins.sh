@@ -12,6 +12,39 @@ PLUGINS=(
     "wps-download|gs-wps-download-${GS_VERSION}.jar,jcodec-0.2.3.jar,jcodec-javase-0.2.3.jar"
 )
 
+extract_jar_from_zip() {
+    local zip_path="$1"
+    local jar_name="$2"
+    local dest_dir="$3"
+
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -o -j "$zip_path" "$jar_name" -d "$dest_dir" 2>&1
+        return $?
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$zip_path" "$jar_name" "$dest_dir" <<'PY' 2>&1
+import os, sys, zipfile
+zip_path, jar_name, dest_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    with zipfile.ZipFile(zip_path) as z:
+        matches = [n for n in z.namelist() if os.path.basename(n) == jar_name]
+        if not matches:
+            sys.stderr.write("jar {} no encontrado en zip\n".format(jar_name))
+            sys.exit(1)
+        with z.open(matches[0]) as src, open(os.path.join(dest_dir, jar_name), "wb") as dst:
+            dst.write(src.read())
+except Exception as e:
+    sys.stderr.write("error extrayendo {}: {}\n".format(jar_name, e))
+    sys.exit(1)
+PY
+        return $?
+    fi
+
+    echo "ni 'unzip' ni 'python3' estan disponibles para extraer JARs" >&2
+    return 127
+}
+
 skipped=()
 installed=()
 failed=()
@@ -55,10 +88,10 @@ for entry in "${PLUGINS[@]}"; do
 
     extract_failed=0
     for jar in "${missing_jars[@]}"; do
-        unzip_out=$(unzip -o -j "$tmp_zip" "$jar" -d "$PLUGINS_DIR" 2>&1) || extract_rc=$?
+        extract_out=$(extract_jar_from_zip "$tmp_zip" "$jar" "$PLUGINS_DIR") || extract_rc=$?
         if [ "${extract_rc:-0}" -ne 0 ]; then
-            echo "[warn]  ${name}: unzip fallo al extraer ${jar}:" >&2
-            echo "$unzip_out" | sed 's/^/        /' >&2
+            echo "[warn]  ${name}: fallo al extraer ${jar}:" >&2
+            echo "$extract_out" | sed 's/^/        /' >&2
             extract_failed=1
             unset extract_rc
             break
