@@ -7,6 +7,26 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.24.1] - 2026-05-22
+
+### `plugins-fetch` no aborta el flujo cuando una extension falla
+
+En el primer despliegue de `1.24.0` en GCP staging, `make plugins-fetch` falló (`no se pudo extraer gs-wps-download-2.27.0.jar del zip`) y como el script terminaba con `exit 1`, el orquestador del ecosistema (`gateway-hub` `make ecosystem-up`) abortó completo en el paso `[4/8] geoserver`, dejando los servicios siguientes sin levantar. Además el mensaje no decía **por qué** falló `unzip` (stderr silenciado con `>/dev/null 2>&1`).
+
+#### Cambiado
+
+- **`scripts/fetch-plugins.sh`**:
+  - **No fatal**: si una extension falla descargando o extrayendo, el script imprime un `[warn]` y un resumen final claro (`AVISO: las siguientes extensions no se pudieron instalar: ...`) pero termina con `exit 0`. GeoServer arranca igual, simplemente sin los procesos/outputs de las extensions fallidas.
+  - **Diagnóstico real**: el stderr de `unzip` y `curl` ya no se silencia. Si `unzip` reporta `cannot create extraction directory` o `bad CRC`, el mensaje aparece indentado debajo del `[warn]`.
+  - **Validación de zip truncado**: antes de invocar `unzip`, se chequea que el zip descargado pese al menos 1024 bytes. Detecta el caso típico donde `curl -fsSL` no marca error pero el cuerpo es un HTML de redirect/login en vez del binario.
+  - **Resumen final**: imprime conteo `X instalado(s), Y ya presente(s), Z con error` para facilitar diagnóstico en logs de CI/orquestadores.
+  - Cambiado `set -euo pipefail` por `set -uo pipefail` (sin `-e`) para permitir el flujo no-fatal sin abortes implícitos.
+
+#### Notas operativas
+
+- Tras este cambio, una falla de SourceForge u otro problema transient en un solo host **no detiene** el resto del ecosistema. Re-ejecutar `make plugins-fetch` cuando el problema se resuelva basta para recuperar.
+- El aviso final va a **stderr**, así que sigue siendo visible en logs sin contaminar stdout.
+
 ## [1.24.0] - 2026-05-22
 
 ### Auto-fetch idempotente de plugins en `make up`

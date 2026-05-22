@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 GS_VERSION="2.27.0"
 SF_BASE="https://sourceforge.net/projects/geoserver/files/GeoServer/${GS_VERSION}/extensions"
@@ -12,8 +12,9 @@ PLUGINS=(
     "wps-download|gs-wps-download-${GS_VERSION}.jar,jcodec-0.2.3.jar,jcodec-javase-0.2.3.jar"
 )
 
-fetched_any=0
-failed=0
+skipped=()
+installed=()
+failed=()
 
 for entry in "${PLUGINS[@]}"; do
     name="${entry%%|*}"
@@ -28,6 +29,7 @@ for entry in "${PLUGINS[@]}"; do
 
     if [ "${#missing_jars[@]}" -eq 0 ]; then
         echo "[skip] ${name}: ${#jar_list[@]} JAR(s) ya presentes"
+        skipped+=("$name")
         continue
     fi
 
@@ -35,52 +37,62 @@ for entry in "${PLUGINS[@]}"; do
 
     zip_url="${SF_BASE}/geoserver-${GS_VERSION}-${name}-plugin.zip/download"
     tmp_zip="$(mktemp -t "geoserver-plugin-${name}-XXXXXX.zip")"
-    trap 'rm -f "$tmp_zip"' EXIT
 
     if ! curl -fsSL -o "$tmp_zip" "$zip_url"; then
-        echo "[error] ${name}: fallo descargando ${zip_url}" >&2
-        failed=1
+        echo "[warn]  ${name}: fallo descargando ${zip_url}" >&2
+        failed+=("$name (download)")
         rm -f "$tmp_zip"
-        trap - EXIT
+        continue
+    fi
+
+    zip_size=$(stat -c %s "$tmp_zip" 2>/dev/null || stat -f %z "$tmp_zip" 2>/dev/null || echo 0)
+    if [ "$zip_size" -lt 1024 ]; then
+        echo "[warn]  ${name}: zip descargado parece truncado (${zip_size} bytes)" >&2
+        failed+=("$name (truncated zip)")
+        rm -f "$tmp_zip"
         continue
     fi
 
     extract_failed=0
     for jar in "${missing_jars[@]}"; do
-        if ! unzip -o -j "$tmp_zip" "$jar" -d "$PLUGINS_DIR" >/dev/null 2>&1; then
-            echo "[error] ${name}: no se pudo extraer ${jar} del zip" >&2
+        unzip_out=$(unzip -o -j "$tmp_zip" "$jar" -d "$PLUGINS_DIR" 2>&1) || extract_rc=$?
+        if [ "${extract_rc:-0}" -ne 0 ]; then
+            echo "[warn]  ${name}: unzip fallo al extraer ${jar}:" >&2
+            echo "$unzip_out" | sed 's/^/        /' >&2
             extract_failed=1
+            unset extract_rc
             break
         fi
         if [ ! -f "$PLUGINS_DIR/$jar" ]; then
-            echo "[error] ${name}: ${jar} no aparecio tras extraer" >&2
+            echo "[warn]  ${name}: ${jar} no aparecio tras extraer" >&2
             extract_failed=1
             break
         fi
     done
 
     rm -f "$tmp_zip"
-    trap - EXIT
 
     if [ "$extract_failed" -eq 1 ]; then
-        failed=1
+        failed+=("$name (extract)")
         continue
     fi
 
     echo "[ok]    ${name}: instalado"
-    fetched_any=1
+    installed+=("$name")
 done
 
-if [ "$failed" -eq 1 ]; then
+echo ""
+echo "Resumen: ${#installed[@]} instalado(s), ${#skipped[@]} ya presente(s), ${#failed[@]} con error"
+
+if [ "${#failed[@]}" -gt 0 ]; then
     echo ""
-    echo "✗ Hubo errores descargando uno o mas plugins. Revisa la salida arriba." >&2
-    exit 1
+    echo "AVISO: las siguientes extensions no se pudieron instalar:" >&2
+    for f in "${failed[@]}"; do
+        echo "  - $f" >&2
+    done
+    echo "" >&2
+    echo "GeoServer arrancara igual; los procesos/outputs de esas extensions no estaran disponibles." >&2
+    echo "Re-ejecuta 'make plugins-fetch' cuando el problema se resuelva." >&2
 fi
 
-if [ "$fetched_any" -eq 0 ]; then
-    echo ""
-    echo "✓ Todos los plugins ya estaban instalados."
-else
-    echo ""
-    echo "✓ Plugins listos en ${PLUGINS_DIR}"
-fi
+exit 0
