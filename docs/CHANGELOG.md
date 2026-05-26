@@ -7,6 +7,32 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.25.0] - 2026-05-26
+
+### `controlflow.properties` como template versionado parametrizado por `.env`
+
+Los límites de concurrencia del plugin Control-flow se gestionaban editando directamente `geoserver_data/controlflow.properties`, archivo que vive en el volumen mounted y NO está versionado (está en `.gitignore`). Cualquier cambio se perdía si alguien recreaba el volumen y no había trazabilidad de las versiones de límites por entorno.
+
+Adicionalmente, para soportar el modo "Vista por municipio" del visor (mapalab 1.50.0) que dispara varias requests WMS concurrentes al cambiar de municipio, se subieron los límites desde el default conservador (`user=6`, `ows.wms.getmap=10`) a valores más permisivos (`user=40`, `ows.wms.getmap=80`).
+
+#### Agregado
+
+- **`config/controlflow.properties.template`** (nuevo, versionado): template con placeholders `${GS_CONTROLFLOW_*}` para cada límite. Generado por `entrypoint-wrapper.sh` en cada arranque del contenedor.
+- **`scripts/entrypoint-wrapper.sh`**: nuevo `sed` que sustituye las 9 variables de control-flow y escribe el archivo final a `/opt/geoserver/data_dir/controlflow.properties`. Sigue el mismo patrón de los templates ya existentes (`server.xml.template`, `global.xml.template`).
+- **`docker-compose.yml`**: nuevas 9 env vars en el bloque `environment` del servicio `geoserver` (`GS_CONTROLFLOW_TIMEOUT`, `GS_CONTROLFLOW_OWS_GLOBAL`, `GS_CONTROLFLOW_OWS_WMS_GETMAP`, `GS_CONTROLFLOW_OWS_WFS_MSEXCEL`, `GS_CONTROLFLOW_OWS_GWC`, `GS_CONTROLFLOW_USER`, `GS_CONTROLFLOW_USER_WPS_EXECUTE`, `GS_CONTROLFLOW_USER_WMS_GETMAP`, `GS_CONTROLFLOW_IP`) + mount del template como `:ro`.
+- **`.env.example`** y `.env`: valores por defecto (más permisivos que el default histórico de Control-flow):
+  - `GS_CONTROLFLOW_OWS_GLOBAL=200` (antes 100)
+  - `GS_CONTROLFLOW_OWS_WMS_GETMAP=80` (antes 10)
+  - `GS_CONTROLFLOW_USER=40` (antes 6)
+  - `GS_CONTROLFLOW_IP=40` (antes 10)
+  - `GS_CONTROLFLOW_USER_WMS_GETMAP=120/s` (antes 30/s)
+  - El resto (`timeout`, `ows.gwc`, `ows.wfs.getfeature.application/msexcel`, `user.ows.wps.execute`) sin cambio.
+
+#### Notas operativas
+
+- GeoServer Control-flow recarga el archivo automáticamente cuando cambia su mtime (default ~5s), sin restart del contenedor. Útil para ajustar límites en caliente: editar `data_dir/controlflow.properties` directamente (efímero, se sobrescribe en próximo restart) o modificar las env vars y reiniciar.
+- Cuando todas las capas críticas del visor tengan `clave_municipio`/`municipio_field` configurado en `mapalab.layers` (plan en `mapalab/docs/planes/PLAN_CLAVE_MUNICIPIO_EN_TABLAS.md`), las URLs serán naturalmente cortas y los límites podrán volver a valores más conservadores.
+
 ## [1.24.2] - 2026-05-22
 
 ### Fallback a `python3` cuando `unzip` no está instalado

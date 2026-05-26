@@ -28,6 +28,15 @@ services:
       POSTGIS_DB: ${POSTGIS_DB}
       POSTGIS_USER: ${POSTGIS_USER}
       POSTGIS_PASSWORD: ${POSTGIS_PASSWORD}
+      GS_CONTROLFLOW_TIMEOUT: ${GS_CONTROLFLOW_TIMEOUT}
+      GS_CONTROLFLOW_OWS_GLOBAL: ${GS_CONTROLFLOW_OWS_GLOBAL}
+      GS_CONTROLFLOW_OWS_WMS_GETMAP: ${GS_CONTROLFLOW_OWS_WMS_GETMAP}
+      GS_CONTROLFLOW_OWS_WFS_MSEXCEL: ${GS_CONTROLFLOW_OWS_WFS_MSEXCEL}
+      GS_CONTROLFLOW_OWS_GWC: ${GS_CONTROLFLOW_OWS_GWC}
+      GS_CONTROLFLOW_USER: ${GS_CONTROLFLOW_USER}
+      GS_CONTROLFLOW_USER_WPS_EXECUTE: ${GS_CONTROLFLOW_USER_WPS_EXECUTE}
+      GS_CONTROLFLOW_USER_WMS_GETMAP: ${GS_CONTROLFLOW_USER_WMS_GETMAP}
+      GS_CONTROLFLOW_IP: ${GS_CONTROLFLOW_IP}
     entrypoint: /opt/geoserver/scripts/entrypoint-wrapper.sh
     volumes:
       - ./geoserver_data:/opt/geoserver/data_dir
@@ -40,6 +49,7 @@ services:
       - ./server.xml.template:/opt/geoserver/server.xml.template:ro
       - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
       - ./config/global.xml.template:/opt/geoserver/global.xml.template:ro
+      - ./config/controlflow.properties.template:/opt/geoserver/controlflow.properties.template:ro
       - ./config/wms.xml:/opt/geoserver/data_dir/wms.xml:ro
       - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro

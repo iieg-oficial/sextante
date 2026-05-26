@@ -1,0 +1,9 @@
+timeout=${GS_CONTROLFLOW_TIMEOUT}
+ows.global=${GS_CONTROLFLOW_OWS_GLOBAL}
+ows.wms.getmap=${GS_CONTROLFLOW_OWS_WMS_GETMAP}
+ows.wfs.getfeature.application/msexcel=${GS_CONTROLFLOW_OWS_WFS_MSEXCEL}
+ows.gwc=${GS_CONTROLFLOW_OWS_GWC}
+user=${GS_CONTROLFLOW_USER}
+user.ows.wps.execute=${GS_CONTROLFLOW_USER_WPS_EXECUTE}
+user.ows.wms.getmap=${GS_CONTROLFLOW_USER_WMS_GETMAP}
+ip=${GS_CONTROLFLOW_IP}
