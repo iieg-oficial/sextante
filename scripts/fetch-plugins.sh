@@ -88,6 +88,16 @@ for entry in "${PLUGINS[@]}"; do
 
     extract_failed=0
     for jar in "${missing_jars[@]}"; do
+        target="$PLUGINS_DIR/$jar"
+        if [ -d "$target" ]; then
+            if rmdir "$target" 2>/dev/null; then
+                echo "[info]  ${name}: removido directorio vacio en lugar de ${jar}" >&2
+            else
+                echo "[warn]  ${name}: ${target} existe como directorio no vacio; eliminalo manualmente y reintenta" >&2
+                extract_failed=1
+                break
+            fi
+        fi
         extract_out=$(extract_jar_from_zip "$tmp_zip" "$jar" "$PLUGINS_DIR") || extract_rc=$?
         if [ "${extract_rc:-0}" -ne 0 ]; then
             echo "[warn]  ${name}: fallo al extraer ${jar}:" >&2
