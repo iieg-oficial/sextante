@@ -5,7 +5,7 @@ RESTORE_FILE_CANDIDATE_RESTORE := $(lastword $(sort $(wildcard restore/geoserver
 RESTORE_FILE_CANDIDATE_BACKUP := $(lastword $(sort $(wildcard $(BACKUP_DIR)/geoserver_data_*.tar.gz)))
 RESTORE_FILE  ?= $(if $(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_RESTORE),$(RESTORE_FILE_CANDIDATE_BACKUP))
 
-.PHONY: help up down restart build logs backup restore clean generate-config init-datastores version-json plugins-fetch
+.PHONY: help up down restart build logs backup restore clean generate-config init-datastores init-gridsets version-json plugins-fetch
 
 help:
 	@echo ""
@@ -20,12 +20,14 @@ help:
 	@echo "  backup       		Respalda geoserver_data/ y plugins/ en $(BACKUP_DIR)/"
 	@echo "  restore      		Restaura el backup más reciente (o RESTORE_FILE=ruta)"
 	@echo "  init-datastores	Reapunta todos los datastores al PostGIS configurado en .env"
+	@echo "  init-gridsets  	Crea/actualiza gridsets GWC via REST (evita el bug de la UI). FORCE=--force para reescribir"
 	@echo "  plugins-fetch  	Descarga JARs de extensions faltantes a plugins/ (idempotente)"
 	@echo "  version-json    	Regenerar version-api/html/version.json desde VERSION"
 	@echo "  clean        		Detiene contenedor y elimina geoserver_data/"
 	@echo ""
 	@echo "Ejemplos:"
 	@echo "  make restore RESTORE_FILE=backups/geoserver_data_20260220_120000.tar.gz"
+	@echo "  make init-gridsets FORCE=--force   # reescribe el gridset aunque ya exista"
 	@echo ""
 
 generate-config:
@@ -55,6 +57,7 @@ up: generate-config version-json plugins-fetch
 	@docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" -X PUT -H "Content-Type: application/json" -d '{"global":{"settings":{"charset":"UTF-8"}}}' http://localhost:8080/geoserver/rest/settings > /dev/null 2>&1 || true
 	@python3 scripts/optimize-cultivos.py
 	@bash scripts/init-datastores.sh
+	@bash scripts/init-gridsets.sh
 	# PENDIENTE: remover cuando los URLChecks se provisionen via geoserver_data en bootstrap de produccion.
 	@bash scripts/setup-urlchecks.sh
 
@@ -153,6 +156,7 @@ restore: generate-config
 		echo "[6/6] Actualizando credenciales admin e inicializando datastores..."; \
 		bash scripts/reset-admin.sh; \
 		bash scripts/init-datastores.sh; \
+		bash scripts/init-gridsets.sh; \
 		python3 scripts/optimize-cultivos.py; \
 		echo ""; \
 		echo "✓ Restauración completa."; \
@@ -161,6 +165,9 @@ restore: generate-config
 
 init-datastores: generate-config
 	@bash scripts/init-datastores.sh
+
+init-gridsets:
+	@bash scripts/init-gridsets.sh $(FORCE)
 
 plugins-fetch:
 	@bash scripts/fetch-plugins.sh

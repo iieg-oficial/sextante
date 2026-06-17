@@ -7,6 +7,24 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.26.0] - 2026-06-15
+
+### Gridset `Jalisco_ITRF2008_13N` (EPSG:6368) via REST de GeoWebCache
+
+La página web de creación de gridsets de GeoServer 2.27.0 tiene un bug: el popup "Find" del selector de SRS entrega el código ya prefijado (`EPSG:6368`) y la página le antepone otro `EPSG:`, produciendo `EPSG:EPSG:6368`. El decode falla, el CRS queda `null` y la página revienta con `NullPointerException` en `AbstractGridSetPage$GridSetCRSPanel.onCodeClicked`. Afecta a cualquier código elegido desde "Find", no solo al 6368 (reportado upstream en el foro OSGeo, sept. 2024).
+
+Para crear gridsets de forma reproducible y a prueba de ese bug, se provisionan ahora por la REST de GeoWebCache en el bootstrap, en vez de la UI.
+
+#### Agregado
+
+- **`scripts/init-gridsets.sh`** (nuevo, versionado): crea/actualiza el gridset `Jalisco_ITRF2008_13N` via `PUT /gwc/rest/gridsets/{name}`. EPSG:6368 (México ITRF2008 / UTM zona 13N), partiendo de los bounds proyectados oficiales del CRS según epsg.io/6368 (`-1396865.12, 1337614.43, 2759543.0, 3809957.21`). El script **cuadra el extent** (extiende el lado corto desde la esquina inferior-izquierda) para que la malla sea cuadrada (`matrixWidth == matrixHeight == 2^L`) y el origen top-left sea constante en todos los niveles — requisito para que clientes WMTS/vector-tile (OpenLayers) aligneen sin distorsión, igual que los gridsets nativos `WebMercatorQuad`. Tiles 256×256, 18 niveles (resolución base 16235.97 m/px, hasta ~0.12 m/px). Idempotente: si existe hace skip; con `--force` **borra y recrea** (actualizar en sitio un gridset en uso corrompe el extent en GWC). Resoluciones calculadas en Python.
+- **`Makefile`**: target `init-gridsets` (acepta `FORCE=--force`) y llamada en los flujos `up` y `restore`, tras `init-datastores`.
+
+#### Notas
+
+- Para que una capa servida en este gridset no devuelva `400 TileOutOfRange` en zonas sin datos (que aborta el render en OpenLayers), su `gridSubset` debe cubrir **todo el extent del gridset**, no solo el bbox de la capa: así los tiles vacíos devuelven `200` (MVT vacío) en vez de `400`. Esto se setea en la config GWC de la capa (`PUT /gwc/rest/layers/{layer}.xml`), vive en `geoserver_data/gwc-layers/` (per-host, no versionado).
+- Modificar parámetros después: editar las constantes en `scripts/init-gridsets.sh` y correr `make init-gridsets FORCE=--force` (borra y recrea). Tras cambiar el gridset hay que **truncar el caché** (`POST /gwc/rest/masstruncate`) y, si una capa lo referenciaba, **recomputar su `gridSubset`** (al cambiar el extent del gridset la cobertura de la capa queda obsoleta y apunta a coordenadas del grid viejo).
+
 ## [1.25.0] - 2026-05-26
 
 ### `controlflow.properties` como template versionado parametrizado por `.env`
