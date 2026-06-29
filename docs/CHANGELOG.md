@@ -7,6 +7,24 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.27.0] - 2026-06-29
+
+### Optimización de `economia.cultivos` movida a dataengine (migración Alembic)
+
+El script `scripts/optimize-cultivos.py` se conectaba a PostGIS via `docker exec dataengine-primary`, lo que asume que el contenedor de la base corre en el mismo host que GeoServer. Es cierto en staging, pero **falso en producción** (PostGIS vive en un servidor dedicado): el `docker inspect` fallaba, el script registraba "el contenedor no está corriendo" y se omitía silenciosamente. La optimización nunca corría donde más importaba, y además reconstruía el índice + `CLUSTER` (lock `ACCESS EXCLUSIVE`) en **cada** arranque.
+
+La optimización es 100% una operación de base de datos sobre una tabla que pertenece a dataengine. Se reubica allí como migración Alembic (`0020_cultivos_spatial_index`), que corre una sola vez junto a PostGIS en ambos entornos y queda versionada/auditada como el resto del schema.
+
+#### Agregado
+
+- **`scripts/init-cultivos-layer.sh`** (nuevo, versionado): republica `economia:cultivos` como vista SQL (virtual table) sobre la columna `geom_3857`, sirviéndola nativa en EPSG:3857. mapalab renderiza en 3857 y su `ImageWMS` pide cada GetMap en 3857, mientras la geom original está en 6368: GeoServer reproyectaba on-the-fly en cada request. Con la capa nativa en 3857 esa reproyección desaparece. Mantiene el nombre de la capa (mapalab no cambia) y el SLD sigue usando la geometría por defecto. Idempotente: si ya está en 3857 hace skip; con `--force` reaplica. Defensivo: si la capa no existe o la columna `geom_3857` aún no fue provisionada (migración 0022 de dataengine), avisa y no rompe el bootstrap. La columna `geom_3857` la crea dataengine (`20260629_0022_cultivos_geom_3857`).
+- **`Makefile`**: target `init-cultivos-layer` (acepta `FORCE=--force`) y llamada en los flujos `up` y `restore`, tras `init-datastores`.
+
+#### Eliminado
+
+- **`scripts/optimize-cultivos.py`** y **`docs/readme_optimize_cultivos.md`**: la lógica vive ahora en `dataengine/jobs/alembic/versions/20260629_0020_cultivos_spatial_index.py`.
+- **`Makefile`**: se quita la invocación `python3 scripts/optimize-cultivos.py` de los flujos `up` y `restore`.
+
 ## [1.26.0] - 2026-06-15
 
 ### Gridset `Jalisco_ITRF2008_13N` (EPSG:6368) via REST de GeoWebCache

@@ -55,8 +55,8 @@ up: generate-config version-json plugins-fetch
 	done
 	@echo ""
 	@docker exec geoserver curl -sf -u "$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2):$$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)" -X PUT -H "Content-Type: application/json" -d '{"global":{"settings":{"charset":"UTF-8"}}}' http://localhost:8080/geoserver/rest/settings > /dev/null 2>&1 || true
-	@python3 scripts/optimize-cultivos.py
 	@bash scripts/init-datastores.sh
+	@bash scripts/init-cultivos-layer.sh
 	@bash scripts/init-gridsets.sh
 	# PENDIENTE: remover cuando los URLChecks se provisionen via geoserver_data en bootstrap de produccion.
 	@bash scripts/setup-urlchecks.sh
@@ -156,8 +156,8 @@ restore: generate-config
 		echo "[6/6] Actualizando credenciales admin e inicializando datastores..."; \
 		bash scripts/reset-admin.sh; \
 		bash scripts/init-datastores.sh; \
+		bash scripts/init-cultivos-layer.sh; \
 		bash scripts/init-gridsets.sh; \
-		python3 scripts/optimize-cultivos.py; \
 		echo ""; \
 		echo "✓ Restauración completa."; \
 		echo ""; \
@@ -168,6 +168,9 @@ init-datastores: generate-config
 
 init-gridsets:
 	@bash scripts/init-gridsets.sh $(FORCE)
+
+init-cultivos-layer:
+	@bash scripts/init-cultivos-layer.sh $(FORCE)
 
 plugins-fetch:
 	@bash scripts/fetch-plugins.sh

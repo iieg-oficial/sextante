@@ -54,7 +54,7 @@ GeoServer **no almacena datos espaciales**: lee de PostGIS y de rasters en disco
 | Repo | Rol respecto a GeoServer |
 |---|---|
 | `gateway-hub` | Proxy publico, cache `geoserver_cache` 6h con `proxy_ignore_headers Cache-Control` para servir WMS GetMap aun cuando GeoServer responde `no-store`. Bot-protection + rate limit. Ver `gateway-hub/docs/recursos-servidores.md` y `rendimiento.md`. |
-| `dataengine` | PostgreSQL+PostGIS detras de PgBouncer. GeoServer se conecta a `dataengine-primary:5432` via red docker `dataengine-network`. La tabla `economia.cultivos` se optimiza pre-arranque con `scripts/optimize-cultivos.py` (ver `docs/readme_optimize_cultivos.md`). |
+| `dataengine` | PostgreSQL+PostGIS detras de PgBouncer. GeoServer se conecta a `dataengine-primary:5432` via red docker `dataengine-network`. El indice espacial de `economia.cultivos` y su columna `geom_3857` (reproyeccion materializada) los provisiona dataengine via migraciones Alembic (`0020`–`0022`), no GeoServer. La capa se republica nativa en EPSG:3857 con `scripts/init-cultivos-layer.sh`. |
 | `mariachi` | Editor de capas. `mariachi/api/app/api/routes/geoserver.py` lista workspaces/layers via REST de GeoServer (`GeoServerClient`). Las altas/bajas de metadatos viven en mariachi; GeoServer queda sincronizado. |
 | `mapalab` | Consumidor principal del WMS. Frontend con `ImageWMS` (no `TileWMS`); BBOX/WIDTH/HEIGHT ad-hoc por viewport. Loop temporal de capas raster cicla el parametro `TIME` (ver `mapalab/MEMORY.md`). |
 | `acervo` | Bucket S3-compatible (SeaweedFS). Sirve PNGs/SVGs referenciados por SLDs como `<ExternalGraphic>`. Reachable via red `iieg-network`. |
@@ -79,8 +79,8 @@ geoserver/
 ├── scripts/
 │   ├── entrypoint-wrapper.sh   # Sustituye templates + escribe /ontoy.json + lanza entrypoint kartoza
 │   ├── init-datastores.sh      # Crea/actualiza datastores PostGIS via REST
-│   ├── reset-admin.sh          # Resetea credenciales admin en el .env tras restore
-│   └── optimize-cultivos.py    # ANALYZE/CLUSTER/CREATE INDEX en economia.cultivos pre-WMS
+│   ├── init-cultivos-layer.sh  # Republica economia:cultivos nativa en EPSG:3857 (vista SQL sobre geom_3857)
+│   └── reset-admin.sh          # Resetea credenciales admin en el .env tras restore
 ├── plugins/                    # JARs montados al classpath de Tomcat (gitignored)
 │   └── gs-geopkg-output-*.jar  # 3 plugins de salida GeoPackage
 ├── fonts/                      # Garet (font family corporativa IIEG) montado en /usr/share/fonts/custom
@@ -95,7 +95,6 @@ geoserver/
 ├── .env.example                # Template versionado, con tuning recomendado por entorno
 └── docs/
     ├── CHANGELOG.md
-    ├── readme_optimize_cultivos.md  # Detalle del script de optimizacion PostGIS
     └── context.md              # Este archivo
 ```
 
@@ -312,11 +311,11 @@ El `Makefile` hace `docker network inspect ... || docker network create dataengi
 
 | Target | Que hace |
 |---|---|
-| `make up` | `generate-config` → `docker compose up -d` → espera a /web/ → setea charset UTF-8 via REST → `optimize-cultivos.py` → `init-datastores.sh` |
+| `make up` | `generate-config` → `docker compose up -d` → espera a /web/ → setea charset UTF-8 via REST → `init-datastores.sh` → `init-cultivos-layer.sh` → `init-gridsets.sh` |
 | `make build` | Igual que up pero con `--force-recreate --build` |
 | `make down` / `restart` / `logs` | Compose passthrough |
 | `make backup` | Detiene? No, **no** detiene. Limpia `.tmp`, extrae data_dir del contenedor a staging, copia plugins, comprime con `tar -czf`. Genera `backups/geoserver_data_YYYYMMDD_HHMMSS.tar.gz`. |
-| `make restore` | Detiene contenedor, borra data_dir y plugins, descomprime el backup mas reciente (o `RESTORE_FILE=...`), genera config desde .env, levanta, ejecuta `reset-admin.sh` + `init-datastores.sh` + `optimize-cultivos.py` |
+| `make restore` | Detiene contenedor, borra data_dir y plugins, descomprime el backup mas reciente (o `RESTORE_FILE=...`), genera config desde .env, levanta, ejecuta `reset-admin.sh` + `init-datastores.sh` |
 | `make init-datastores` | Solo el script de reapuntar datastores; util cuando cambias IP/credenciales de PostGIS |
 | `make clean` | Con confirmacion `s/N`: down + `rm -rf geoserver_data/`. Destructivo. |
 
