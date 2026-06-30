@@ -7,6 +7,21 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.28.0] - 2026-06-30
+
+### `economia:cultivos`: campo `clave_municipio` para filtro por municipio + caché de tiles
+
+mapalab filtra la "Vista por municipio" con un CQL sobre un campo de la capa. La vista SQL de cultivos no exponía la columna `clave_municipio` (agregada en dataengine 1.23.0), así que el filtro tronaba con `Illegal property name`. Se agrega al SELECT.
+
+#### Cambiado
+
+- **`scripts/init-cultivos-layer.sh`**: la vista SQL ahora selecciona `clave_municipio` además de `fid, muestra, prediccion, geom_3857`, para que GeoServer la exponga y mapalab pueda filtrar `clave_municipio IN (...)`.
+
+#### Notas operativas (per-host, GWC — replicar en producción)
+
+- `economia:cultivos` se sirve por tiles. Para cachear las variantes filtradas por `prediccion` (y municipio) se agregó un `regexParameterFilter` de `CQL_FILTER` a la capa en GWC (sin él, GWC devuelve `no parameter filter exists for CQL_FILTER` y nunca cachea).
+- Los mapas base `raster:hillshade_iieg_cog` y `raster:hillshade_inegi_cog` estaban como "not a tile layer" (MISS siempre); se habilitaron como tile layers en GWC y se sembraron (zooms 6-13). Estas configuraciones viven en `geoserver_data/gwc-layers/` (per-host).
+
 ## [1.27.0] - 2026-06-29
 
 ### Optimización de `economia.cultivos` movida a dataengine (migración Alembic)

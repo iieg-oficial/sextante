@@ -23,7 +23,7 @@ GEOM_COL=geom_3857
 GEOM_TYPE=MultiPolygon
 SRID=3857
 KEY_COL=fid
-SQL_SELECT="SELECT ${KEY_COL}, muestra, prediccion, ${GEOM_COL} FROM ${SCHEMA}.${TABLE}"
+SQL_SELECT="SELECT ${KEY_COL}, muestra, prediccion, clave_municipio, ${GEOM_COL} FROM ${SCHEMA}.${TABLE}"
 
 FORCE="${1:-}"
 FT_URL="$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores/$DATASTORE/featuretypes/$LAYER"
