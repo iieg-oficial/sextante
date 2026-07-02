@@ -42,7 +42,7 @@ up: generate-config version-json plugins-fetch
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d
 	@echo "Esperando que GeoServer esté listo..."
-	@attempts=0; max=24; \
+	@attempts=0; max=60; \
 	until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
 		attempts=$$((attempts+1)); \
 		if [ $$attempts -ge $$max ]; then \
@@ -66,12 +66,12 @@ build: generate-config version-json plugins-fetch
 	@docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network
 	docker compose up -d --force-recreate --build
 	@echo "Esperando que GeoServer esté listo..."
-	@attempts=0; max=24; \
+	@attempts=0; max=60; \
 	until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
-		attempts=$$((attempts+1)); \
-		if [ $$attempts -ge $$max ]; then \
+		attempts=$((attempts+1)); \
+		if [ $attempts -ge $max ]; then \
 			echo ""; \
-			echo "✗ GeoServer no respondió después de $$((max*5))s. Últimos logs:"; \
+			echo "✗ GeoServer no respondió después de $((max*5))s. Últimos logs:"; \
 			docker logs geoserver --tail 20 2>&1; \
 			exit 1; \
 		fi; \
@@ -141,7 +141,7 @@ restore: generate-config
 		docker network inspect dataengine-network >/dev/null 2>&1 || docker network create dataengine-network; \
 		docker compose up -d; \
 		echo "Esperando que GeoServer esté listo..."; \
-		attempts=0; max=24; \
+		attempts=0; max=60; \
 		until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do \
 			attempts=$$((attempts+1)); \
 			if [ $$attempts -ge $$max ]; then \
