@@ -101,20 +101,17 @@ backup:
 	@echo ""
 	@echo "═══ Backup GeoServer ═══"
 	@echo "[1/5] Limpiando archivos temporales..."
-	@docker exec geoserver find /opt/geoserver/data_dir -name "global.xml.*.tmp" -delete 2>/dev/null || true
-	# PENDIENTE: remover cuando el umask del entrypoint cree directorios con 755 (hoy a veces crea drw-r--r-- sin bit x y tar falla por Permission denied al hacer stat).
-	@docker exec geoserver find /opt/geoserver/data_dir -type d ! -perm -u+x -exec chmod u+rx {} +
+	@docker exec -u root geoserver find /opt/geoserver/data_dir -name "global.xml.*.tmp" -delete 2>/dev/null || true
 	@echo "[2/5] Preparando staging..."
-	# PENDIENTE: si la corrida previa extrajo dirs con permisos malos del container, rm -rf no puede entrar a ellos. Arreglar primero.
-	@chmod -R u+rwX .backup_staging 2>/dev/null || true
-	@rm -rf .backup_staging && mkdir -p .backup_staging
+	@docker run --rm -v $(CURDIR):/data alpine rm -rf /data/.backup_staging
+	@mkdir -p .backup_staging
 	@echo "[3/5] Extrayendo data_dir del contenedor..."
-	@docker exec geoserver tar -cf - -C /opt/geoserver data_dir | tar -xf - -C .backup_staging
+	@docker exec -u root geoserver tar -cf - -C /opt/geoserver data_dir | tar -xf - -C .backup_staging
 	@echo "[4/5] Copiando plugins..."
 	@cp -r plugins .backup_staging/
 	@echo "[5/5] Comprimiendo backup (un punto = 1000 archivos)..."
 	@tar -czf $(BACKUP_FILE) -C .backup_staging --checkpoint=1000 --checkpoint-action=exec='printf .' data_dir plugins && echo ''
-	@rm -rf .backup_staging
+	@docker run --rm -v $(CURDIR):/data alpine rm -rf /data/.backup_staging
 	@FILESIZE=$$(du -h $(BACKUP_FILE) | cut -f1); \
 		echo ""; \
 		echo "✓ Backup guardado: $(BACKUP_FILE) ($$FILESIZE)"

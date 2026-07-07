@@ -7,6 +7,26 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.29.0] - 2026-07-07
+
+### `make backup`: eliminados los parches de permisos (raíz atacada vía root en contenedor)
+
+Los dos guards `PENDIENTE` que `1.22.1` agregó al target `backup` (un `chmod u+rx` dentro del contenedor antes del `tar` y un `chmod -R u+rwX` sobre `.backup_staging` antes del `rm -rf`) dependían de los permisos del usuario del host (uid 1000): si el contenedor generaba un directorio sin bit `x` para el dueño, tanto la lectura como la limpieza tronaban, y por eso hacían falta los parches.
+
+Al revisar la causa raíz: la imagen `kartoza/geoserver:2.27.0` corre la JVM con `umask 0027` (forzado por el `SecurityListener` de Tomcat, `-Dorg.apache.catalina.security.SecurityListener.UMASK=0027`), así que los directorios nacen `0750` — **con** bit `x`. El entrypoint de kartoza tampoco hace `chmod` sobre `data_dir` (solo `chown -R`). El `drw-r--r--` que motivó `1.22.1` no se reproduce con esa config; era cicatriz histórica. Bajar el umask a `0022` (el "fix" que planteaban los `PENDIENTE`) sería contraproducente: el `SecurityListener` impone `0027` como hardening y aflojarlo puede impedir el arranque.
+
+En vez de parchar permisos, el backup ya no depende del usuario del host: todas las lecturas del contenedor y todas las limpiezas de staging corren como root.
+
+#### Cambiado
+
+- **`Makefile` (target `backup`)**:
+  - Las operaciones dentro del contenedor (`find ... -delete` de `.tmp` y `tar -cf -` de `data_dir`) ahora usan `docker exec -u root`. Root ignora los bits de permiso, así que el `tar` nunca falla con `Cannot stat: Permission denied` sin importar el modo de los directorios → elimina el primer `PENDIENTE` de raíz.
+  - La limpieza de `.backup_staging` (antes y después de comprimir) usa `docker run --rm -v $(CURDIR):/data alpine rm -rf`, el mismo patrón que ya usan `restore` y `clean`. Al correr como root borra cualquier modo sin el `chmod` previo → elimina el segundo `PENDIENTE` de raíz.
+
+#### Notas
+
+- Si en algún momento reaparecieran directorios sin bit `x` en `data_dir`, sería síntoma de un problema de umask a corregir en la imagen/entrypoint, no algo a parchar de nuevo en el backup.
+
 ## [1.28.0] - 2026-06-30
 
 ### `economia:cultivos`: campo `clave_municipio` para filtro por municipio + caché de tiles
