@@ -7,6 +7,16 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.29.1] - 2026-07-16
+
+### Refactor: eliminar defaults inline del compose
+
+Sin cambios de runtime del servicio.
+
+#### Cambiado
+
+- **`docker-compose.yml`**: eliminados los defaults inline `${VAR:-valor}`. `INITIAL_MEMORY` y `MAXIMUM_MEMORY` pasan a obligatorios (`${VAR:?}`, ya presentes en `.env.example`); `ADDITIONAL_JAVA_STARTUP_OPTIONS` queda opcional.
+
 ## [1.29.0] - 2026-07-07
 
 ### `make backup`: eliminados los parches de permisos (raíz atacada vía root en contenedor)
