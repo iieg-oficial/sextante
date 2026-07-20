@@ -135,6 +135,8 @@ create_datastore() {
     printf "Creando datastore '%s:%s' (schema=%s)... " "$workspace" "$name" "$schema"
     if result=$(datastore_request "POST" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores" "$payload"); then
       echo "OK"
+    elif result=$(datastore_request "PUT" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name" "$payload"); then
+      echo "OK (ya existia; actualizado)"
     else
       echo "FAIL (http=$result)"
       FAILED_DATASTORES+=("$workspace:$name")
