@@ -7,6 +7,20 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.30.0] - 2026-07-23
+
+### Cambiado: `GS_CONTROLFLOW_USER_WMS_GETMAP` de `120/s` a `600/s`
+
+El visor de MapaLab devolvía **429** al hacer zoom rápido sobre capas servidas por tiles. El 429 lo emite control-flow, no el gateway: los rechazos llegaban con `upstream_addr` y `upstream_response_time` en el log de nginx, y `limit_req` registró **0**.
+
+`user.ows.wms.getmap` es un rate limit por segundo y se cuenta **por cookie `GS_FLOW_CONTROL`**, así que el navegador acumula todas sus peticiones en el mismo cubo. Reproducido: 420 tiles únicos con 40 en paralelo dan **193 × 429** con la cookie fija y **0 errores** sin ella — por eso `curl` a secas no lo reproduce aunque supere el límite.
+
+El valor `120/s` se diseñó para el modelo WMS de imagen única (1 GetMap por render, como los `2350x1499` que aparecen en los logs). Con tiles de 256 px una sola pantalla son ~70 peticiones y un zoom de varios niveles las multiplica. Con `600/s`, la misma prueba pasa a **420/420 OK**.
+
+- Cambio efectivo en `GS_CONTROLFLOW_USER_WMS_GETMAP` de `/IIEG/geoserver/.env`, que está **gitignoreado**: el valor real no viaja en el repo y hay que aplicarlo a mano en cada entorno. Requiere recrear el contenedor.
+- El resto de límites no se tocó. `ows.wms.getmap` (80) y `ip` (40) son de concurrencia: encolan, no devuelven 429.
+- Mitigación complementaria en gateway-hub 1.32.0 (caché de tiles WMS) y mapalab 1.85.0 (relieve por GWC). Contexto completo en `mapalab/docs/render_layers.md`.
+
 ## [1.29.1] - 2026-07-16
 
 ### Refactor: eliminar defaults inline del compose
