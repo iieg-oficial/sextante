@@ -3,7 +3,8 @@ import urllib.request
 import urllib.error
 import os
 
-GEOSERVER = 'http://10.25.7.17:8080'
+GEOSERVER_HOST = os.environ.get('GEOSERVER_HOST', 'localhost')
+GEOSERVER = f'http://{GEOSERVER_HOST}:8080'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -50,5 +51,5 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     server = http.server.HTTPServer(('0.0.0.0', 8087), ProxyHandler)
-    print('Proxy corriendo en http://10.25.7.17:8087/visor_vector_tiles.html')
+    print(f'Proxy corriendo en http://{GEOSERVER_HOST}:8087/visor_vector_tiles.html')
     server.serve_forever()
