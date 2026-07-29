@@ -200,4 +200,4 @@ Dos caminos para que los JARs persistan en un host nuevo:
 - Catalogo oficial 2.27.0: [sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/](https://sourceforge.net/projects/geoserver/files/GeoServer/2.27.0/extensions/)
 - Doc por extension: [docs.geoserver.org/2.27.x/en/user/extensions/](https://docs.geoserver.org/2.27.x/en/user/extensions/)
 - Imagen kartoza (inventario de JARs bundled): [github.com/kartoza/docker-geoserver](https://github.com/kartoza/docker-geoserver)
-- Contexto general del despliegue: [context.md](context.md)
+- Contexto general del despliegue: `repos/geoserver/contexto.md` en el repositorio central de contexto

@@ -7,6 +7,23 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.30.1] - 2026-07-29
+
+### El contexto se movio al repo central
+
+Solo documentacion; sin cambios en GeoServer ni en las capas.
+
+#### Eliminado
+
+- `docs/context.md`, que vive ahora en `repos/geoserver/contexto.md` del repositorio central de
+  contexto (`iieg-oficial/context-ame-esta`). Los contratos con dataengine (las columnas de la capa
+  de cultivos), con acervo (la simbologia de los SLDs) y con gateway-hub (el cache WMS de 6 h)
+  quedaron en `ecosistema/contratos.md`.
+
+#### Corregido
+
+- `docs/plugins.md` enlazaba al `context.md` eliminado.
+
 ## [1.30.0] - 2026-07-23
 
 ### Cambiado: `GS_CONTROLFLOW_USER_WMS_GETMAP` de `120/s` a `600/s`
