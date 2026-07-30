@@ -101,7 +101,7 @@ Extensiones que **NO** aplican al despliegue actual:
 
 - Script: [scripts/fetch-plugins.sh](../scripts/fetch-plugins.sh)
 - Target: `make plugins-fetch`
-- Integracion: corre automaticamente como prerequisito de `make up` y `make build`.
+- Integracion: corre automaticamente como prerequisito de `make up` y `make deploy`.
 
 El script lleva un manifiesto declarativo inline con la lista de extensions a instalar y los JARs esperados de cada una. Para cada extension:
 
@@ -166,7 +166,7 @@ make plugins-fetch                                # solo baja lo faltante
 6. **Recrear contenedor** y verificar:
 
    ```bash
-   make build
+   make deploy
    docker logs geoserver --tail 100 | grep -iE "error|exception"
    ```
 
@@ -185,12 +185,12 @@ make plugins-fetch                                # solo baja lo faltante
 `Makefile` trata `plugins/` como **estado per-host** junto con `geoserver_data/`:
 
 - `make backup` → copia `plugins/` al staging y lo incluye en el `tar.gz` final (junto al data_dir).
-- `make restore` → borra `plugins/` y `geoserver_data/`, restaura ambos desde el tar.gz mas reciente.
-- `make clean` → borra `plugins/` (destructivo, con confirmacion).
+- `make restore` → borra `plugins/` y `geoserver_data/`, restaura ambos desde el tar.gz que se elija en el selector.
+- `make clean` → borra `geoserver_data/` y los volumenes (destructivo, con confirmacion). **No toca `plugins/`**.
 
 Dos caminos para que los JARs persistan en un host nuevo:
 
-1. **Con backup previo**: `make restore` extrae `plugins/` del tar.gz junto al data_dir.
+1. **Con backup previo**: `make restore` extrae `plugins/` del tar.gz elegido junto al data_dir.
 2. **Sin backup**: `make up` corre `plugins-fetch` automaticamente y los baja de SourceForge segun el manifest en [scripts/fetch-plugins.sh](../scripts/fetch-plugins.sh).
 
 ---

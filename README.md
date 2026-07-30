@@ -43,8 +43,7 @@ geoserver/
 │   └── init-datastores.sh           # Crea datastores con SSL en PostgreSQL
 ├── version-api/                     # Sidecar: sirve /ontoy en :8088 (iieg-network)
 │   ├── Dockerfile
-│   ├── ontoy_server.py              # http.server stdlib (sin deps)
-│   └── html/version.json            # Generado por `make version-json`
+│   └── ontoy_server.py              # http.server stdlib (sin deps), lee VERSION montado
 ├── .env.example                     # Template de variables de entorno
 ├── geoserver_data/                  # Data dir persistente (no versionado)
 ├── plugins/                         # JARs adicionales (no versionado)
@@ -107,7 +106,7 @@ make up
 make up        # Levantar
 make down      # Detener
 make restart   # Reiniciar
-make logs      # Ver logs en tiempo real
+make logs      # Ver logs en tiempo real, con selector de servicio
 ```
 
 ### Backup y restore
@@ -116,11 +115,8 @@ make logs      # Ver logs en tiempo real
 # Crear backup (se guarda en backups/ con timestamp)
 make backup
 
-# Restaurar el backup más reciente
+# Restaurar un backup (selector entre los archivos de restore/ y backups/)
 make restore
-
-# Restaurar un backup específico
-make restore RESTORE_FILE=backups/geoserver_data_20260220_120000.tar.gz
 ```
 
 ### Limpiar todo

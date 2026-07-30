@@ -7,6 +7,36 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.31.0] - 2026-07-30
+
+### Cambiado: Makefile homologado con el resto del ecosistema
+
+La interfaz de comandos es ahora la misma en los nueve repos: `up` levanta desarrollo sin
+reconstruir y `deploy` hace produccion completa (`git pull` + `down` + `build` + `up`). Se
+retiraron todas las banderas: el entorno se detecta por el nombre de proyecto de Compose y lo que
+antes era un argumento ahora es un selector interactivo. Lo transversal vive en `make/common.mk` y
+`make/lib.sh`, copiados en cada repo. Convencion completa en `ecosistema/makefiles.md` del repo de
+contexto.
+
+Las reglas se partieron en `make/init.mk` y `make/backup.mk`.
+
+### Corregido: el bucle de espera de `build` estaba roto
+
+Escribia `attempts=$((attempts+1))` y `$attempts` sin escapar, asi que **Make los expandia como
+variables propias vacias** y la receta llegaba al shell como `attempts=` y `if [ ttempts -ge ax ]`.
+El health-check nunca esperaba de verdad. El mismo bucle en `up` si escapaba con `$$`. Ahora vive
+una sola vez en `wait_geoserver`, en `make/repo.sh`, y no pasa por la interpolacion de Make.
+
+### Eliminado: `version-json`
+
+El `/ontoy` lee la version de `VERSION`, ya montado en el sidecar. Se retiraron el target, el mount
+de `version.json` y la carpeta `version-api/html`.
+
+### Cambiado: `restart` ya regenera la configuracion
+
+Antes no dependia de `generate-config`, asi que editar el `.env` y reiniciar dejaba GeoServer con
+el `server.xml` viejo. Ahora `_generate-config` es prerequisito de todo lo que levanta.
+
 ## [1.30.2] - 2026-07-30
 
 ### Corregido: el `/ontoy` del sidecar no era alcanzable desde otra VM
