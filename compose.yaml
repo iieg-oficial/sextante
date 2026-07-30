@@ -1,40 +1,56 @@
+name: geoserver
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 5s
+  retries: 3
+
+x-host-gateway: &host-gateway
+  - "host.docker.internal:host-gateway"
+
 services:
   geoserver:
     image: kartoza/geoserver:2.27.0
     container_name: geoserver
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${GEOSERVER_BIND_ADDR:?}:${GEOSERVER_PORT:?}:8080"
     env_file:
       - .env
     environment:
-      GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER}
-      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD}
-      RESET_ADMIN_CREDENTIALS: ${RESET_ADMIN_CREDENTIALS}
-      GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR}
-      ENABLE_JSONP: ${ENABLE_JSONP}
-      MAX_FILTER_RULES: ${MAX_FILTER_RULES}
-      OPTIMIZE_LINE_WIDTH: ${OPTIMIZE_LINE_WIDTH}
-      GEOSERVER_PROXY_BASE_URL: ${GEOSERVER_PROXY_BASE_URL}
-      GEOSERVER_CSRF_WHITELIST: ${GEOSERVER_CSRF_WHITELIST}
-      HTTP_SCHEME: ${HTTP_SCHEME}
-      TOMCAT_SECURE: ${TOMCAT_SECURE}
+      GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER:?}
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:?}
+      RESET_ADMIN_CREDENTIALS: ${RESET_ADMIN_CREDENTIALS:?}
+      GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR:?}
+      ENABLE_JSONP: ${ENABLE_JSONP:?}
+      MAX_FILTER_RULES: ${MAX_FILTER_RULES:?}
+      OPTIMIZE_LINE_WIDTH: ${OPTIMIZE_LINE_WIDTH:?}
+      GEOSERVER_PROXY_BASE_URL: ${GEOSERVER_PROXY_BASE_URL:?}
+      GEOSERVER_CSRF_WHITELIST: ${GEOSERVER_CSRF_WHITELIST:?}
+      HTTP_SCHEME: ${HTTP_SCHEME:?}
+      TOMCAT_SECURE: ${TOMCAT_SECURE:?}
       INITIAL_MEMORY: ${INITIAL_MEMORY:?}
       MAXIMUM_MEMORY: ${MAXIMUM_MEMORY:?}
-      ADDITIONAL_JAVA_STARTUP_OPTIONS: ${ADDITIONAL_JAVA_STARTUP_OPTIONS}
-      GEOSERVER_XSTREAM_WHITELIST: ${GEOSERVER_XSTREAM_WHITELIST}
-      POSTGIS_HOST: ${POSTGIS_HOST}
-      POSTGIS_PORT: ${POSTGIS_PORT}
-      POSTGIS_DB: ${POSTGIS_DB}
-      GS_CONTROLFLOW_TIMEOUT: ${GS_CONTROLFLOW_TIMEOUT}
-      GS_CONTROLFLOW_OWS_GLOBAL: ${GS_CONTROLFLOW_OWS_GLOBAL}
-      GS_CONTROLFLOW_OWS_WMS_GETMAP: ${GS_CONTROLFLOW_OWS_WMS_GETMAP}
-      GS_CONTROLFLOW_OWS_WFS_MSEXCEL: ${GS_CONTROLFLOW_OWS_WFS_MSEXCEL}
-      GS_CONTROLFLOW_OWS_GWC: ${GS_CONTROLFLOW_OWS_GWC}
-      GS_CONTROLFLOW_USER: ${GS_CONTROLFLOW_USER}
-      GS_CONTROLFLOW_USER_WPS_EXECUTE: ${GS_CONTROLFLOW_USER_WPS_EXECUTE}
-      GS_CONTROLFLOW_USER_WMS_GETMAP: ${GS_CONTROLFLOW_USER_WMS_GETMAP}
-      GS_CONTROLFLOW_IP: ${GS_CONTROLFLOW_IP}
+      ADDITIONAL_JAVA_STARTUP_OPTIONS: ${ADDITIONAL_JAVA_STARTUP_OPTIONS?}
+      GEOSERVER_XSTREAM_WHITELIST: ${GEOSERVER_XSTREAM_WHITELIST?}
+      POSTGIS_HOST: ${POSTGIS_HOST:?}
+      POSTGIS_PORT: ${POSTGIS_PORT:?}
+      POSTGIS_DB: ${POSTGIS_DB:?}
+      GS_CONTROLFLOW_TIMEOUT: ${GS_CONTROLFLOW_TIMEOUT:?}
+      GS_CONTROLFLOW_OWS_GLOBAL: ${GS_CONTROLFLOW_OWS_GLOBAL:?}
+      GS_CONTROLFLOW_OWS_WMS_GETMAP: ${GS_CONTROLFLOW_OWS_WMS_GETMAP:?}
+      GS_CONTROLFLOW_OWS_WFS_MSEXCEL: ${GS_CONTROLFLOW_OWS_WFS_MSEXCEL:?}
+      GS_CONTROLFLOW_OWS_GWC: ${GS_CONTROLFLOW_OWS_GWC:?}
+      GS_CONTROLFLOW_USER: ${GS_CONTROLFLOW_USER:?}
+      GS_CONTROLFLOW_USER_WPS_EXECUTE: ${GS_CONTROLFLOW_USER_WPS_EXECUTE:?}
+      GS_CONTROLFLOW_USER_WMS_GETMAP: ${GS_CONTROLFLOW_USER_WMS_GETMAP:?}
+      GS_CONTROLFLOW_IP: ${GS_CONTROLFLOW_IP:?}
     entrypoint: /opt/geoserver/scripts/entrypoint-wrapper.sh
     volumes:
       - ./geoserver_data:/opt/geoserver/data_dir
@@ -52,17 +68,23 @@ services:
       - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
       - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
       - ./fonts:/usr/share/fonts/custom:ro
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fsI http://localhost:8080/geoserver/web/ >/dev/null || exit 1"]
+      timeout: 10s
+      start_period: 180s
+    extra_hosts: *host-gateway
     networks:
       - geonetwork
-      - dataengine-network
       - iieg-network
+    logging: *logging
 
   version-api:
     build: ./version-api
     container_name: geoserver-version-api
     restart: unless-stopped
     ports:
-      - "${VERSION_API_PORT:?}:8088"
+      - "${VERSION_API_BIND_ADDR:?}:${VERSION_API_PORT:?}:8088"
     environment:
       ONTOY_SERVICE: geoserver
       ONTOY_COMPOSE_PROJECT: geoserver
@@ -72,17 +94,14 @@ services:
       - ./version-api/html/version.json:/app/version.json:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
+      <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/ontoy').read()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
     networks:
       - iieg-network
+    logging: *logging
 
 networks:
   geonetwork:
     driver: bridge
-  dataengine-network:
-    external: true
   iieg-network:
     external: true
