@@ -3,7 +3,7 @@
 Inventario de extensiones disponibles en este despliegue, divididas en:
 
 1. **Bundled en la imagen kartoza** — ya cargadas en el classpath de Tomcat, sin gestion local.
-2. **Bind-mounted desde `plugins/`** — JARs descargados manualmente y montados via `docker-compose.yml`. Gitignored.
+2. **Bind-mounted desde `plugins/`** — JARs descargados manualmente y montados via `compose.yaml`. Gitignored.
 3. **Recomendados a futuro** — extensiones que tienen sentido para el ecosistema IIEG pero aun no estan instaladas.
 
 Version base: GeoServer `2.27.0` (imagen `kartoza/geoserver:2.27.0`). Toda extension instalada manualmente **debe matchear** la version 2.27.0 para evitar conflictos de classpath.
@@ -39,7 +39,7 @@ Estas extensiones vienen ya empacadas en la imagen oficial. No requieren configu
 
 ## 2. Bind-mounted desde `plugins/`
 
-JARs descargados manualmente del SourceForge oficial de GeoServer y montados como volumenes `:ro` en `docker-compose.yml` → `/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/`. El folder `plugins/` es **gitignored** y se incluye en los `tar.gz` de `make backup`.
+JARs descargados manualmente del SourceForge oficial de GeoServer y montados como volumenes `:ro` en `compose.yaml` → `/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/`. El folder `plugins/` es **gitignored** y se incluye en los `tar.gz` de `make backup`.
 
 ### GeoPackage Output
 
@@ -157,7 +157,7 @@ make plugins-fetch                                # solo baja lo faltante
    )
    ```
 
-5. **Agregar bind mounts** en `docker-compose.yml` para cada JAR nuevo:
+5. **Agregar bind mounts** en `compose.yaml` para cada JAR nuevo:
 
    ```yaml
    - ./plugins/<jar>:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/<jar>:ro

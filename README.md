@@ -32,7 +32,7 @@ GeoServer en Docker :8080  →  PostgreSQL/PostGIS
 ```
 geoserver/
 ├── Makefile                         # Comandos de operación
-├── docker-compose.yml               # Definición del servicio
+├── compose.yaml                          # Definición del servicio
 ├── server.xml                       # Conector Tomcat (HTTPS/proxy)
 ├── config/
 │   ├── global.xml                   # URL pública del proxy
