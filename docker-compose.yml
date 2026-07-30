@@ -26,8 +26,6 @@ services:
       POSTGIS_HOST: ${POSTGIS_HOST}
       POSTGIS_PORT: ${POSTGIS_PORT}
       POSTGIS_DB: ${POSTGIS_DB}
-      POSTGIS_USER: ${POSTGIS_USER}
-      POSTGIS_PASSWORD: ${POSTGIS_PASSWORD}
       GS_CONTROLFLOW_TIMEOUT: ${GS_CONTROLFLOW_TIMEOUT}
       GS_CONTROLFLOW_OWS_GLOBAL: ${GS_CONTROLFLOW_OWS_GLOBAL}
       GS_CONTROLFLOW_OWS_WMS_GETMAP: ${GS_CONTROLFLOW_OWS_WMS_GETMAP}
@@ -81,9 +79,6 @@ services:
       retries: 3
     networks:
       - iieg-network
-
-volumes:
-  geoserver_data:
 
 networks:
   geonetwork:
