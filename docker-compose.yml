@@ -63,6 +63,8 @@ services:
     build: ./version-api
     container_name: geoserver-version-api
     restart: unless-stopped
+    ports:
+      - "${VERSION_API_PORT:?}:8088"
     environment:
       ONTOY_SERVICE: geoserver
       ONTOY_COMPOSE_PROJECT: geoserver

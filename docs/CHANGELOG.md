@@ -7,6 +7,33 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [1.30.2] - 2026-07-30
+
+### Corregido: el `/ontoy` del sidecar no era alcanzable desde otra VM
+
+`geoserver-version-api` no publicaba ningun puerto al host: su 8088 existia solo dentro de
+`iieg-network`. En un despliegue monolito eso alcanza, porque el monitor comparte red docker con el
+sidecar. **En produccion cada servicio vive en su propia VM y `iieg-network` no cruza de nodo**, asi
+que `huachicol-monitor` no podia alcanzarlo y la tarjeta de GeoServer llevaba dias caida con
+`[Errno 111] Connection refused`.
+
+`Connection refused` y no timeout: el paquete llegaba al host y este respondia con RST, o sea el
+camino de red ya estaba permitido y solo faltaba que algo escuchara. No hizo falta pedir apertura
+de puertos.
+
+Se replica el patron que ya usaba dataengine, el unico servicio en otra VM que siempre se monitoreo
+bien.
+
+#### Agregado
+
+- El servicio `version-api` publica su 8088 al host mediante `VERSION_API_PORT`.
+- `VERSION_API_PORT` en `.env.example`.
+
+> **Al desplegar: agregar `VERSION_API_PORT` al `.env` de cada entorno antes del `make up`.** La
+> variable se declara con `:?`, asi que el compose falla explicito si falta.
+
+---
+
 ## [1.30.1] - 2026-07-29
 
 ### El contexto se movio al repo central
