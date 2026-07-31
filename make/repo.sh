@@ -32,6 +32,7 @@ init_all() {
     run_step 'Cultivos' bash scripts/init-cultivos-layer.sh
     run_step 'Gridsets' bash scripts/init-gridsets.sh
     run_step 'URLChecks' bash scripts/setup-urlchecks.sh
+    run_step 'GWC filters' bash scripts/init-gwc-filters.sh
 }
 
 clean_data_dir() {

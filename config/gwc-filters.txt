@@ -1,0 +1,26 @@
+# Parameter filters de GeoWebCache, aplicados por scripts/init-gwc-filters.sh
+# en cada `make up` y `make deploy`. Sin ellos GWC no procesa la peticion: se
+# pierden el cache y el metatiling 4x4, y los poligonos que cruzan el borde de
+# un tile salen cortados.
+#
+# Formato:  workspace:capa                 -> solo el filtro de ENV
+#           workspace:capa=<valor CQL>     -> ENV + ese valor de CQL_FILTER
+#
+# El valor de CQL debe coincidir BYTE A BYTE con el que manda el visor. Para
+# obtenerlo sin equivocarse: `scripts/init-gwc-filters.sh --learn`, que lo lee
+# del trafico real del gateway, y pegar aqui lo que reporte.
+#
+# Una capa puede repetirse con distintos valores de CQL: se acumulan.
+# Un valor no declarado se sigue sirviendo, solo que sin cache. Cada valor
+# declarado multiplica el disco de geoserver_data/gwc/, asi que conviene
+# declarar los de uso real y no la cola larga de fechas.
+
+general:cuerpos_de_agua_50k
+general:curvas_de_nivel_render
+
+# --- Valores de CQL capturados del trafico real con --learn ---
+# Revisar al desplegar en otro entorno: si alli se usan otras combinaciones,
+# regenerarlos con `scripts/init-gwc-filters.sh --learn` y pegarlos aqui.
+economia:cultivos=(prediccion = 'Agave') OR (prediccion = 'Maíz')
+economia:cultivos=(prediccion = 'Otros') OR (prediccion = 'Agave') OR (prediccion = 'Caña de azúcar') OR (prediccion = 'Maíz grano') OR (prediccion = 'Aguacate') OR (prediccion = 'Plátano') OR (prediccion = 'Mango') OR (prediccion = 'Cítricos')
+seguridad_y_proteccion_ciudadana:datos_delitos_abuso_sexual_secretariado=((fecha >= '2025-01-01' AND fecha < '2026-01-01'))

@@ -17,10 +17,12 @@ ENV_DEFAULT="geom:geom_iieg"
 GATEWAY_CONTAINER="${GATEWAY_CONTAINER:-gateway-hub-nginx-1}"
 SEXTANTE_CONTAINER="${SEXTANTE_CONTAINER:-sextante}"
 LEARN_TAIL="${LEARN_TAIL:-20000}"
+FILTERS_FILE="${FILTERS_FILE:-$PROJECT_DIR/config/gwc-filters.txt}"
 
 usage() {
   cat >&2 <<'USAGE'
 Uso:
+  init-gwc-filters.sh                                  # aplica config/gwc-filters.txt
   init-gwc-filters.sh <workspace:capa>[=<valor CQL>] ...
   init-gwc-filters.sh --learn [workspace:capa ...]
 
@@ -50,7 +52,13 @@ porque cada valor multiplica el disco del cache.
 Varias capas a mano: como argumentos separados, o en una sola cadena separadas
 por ';' (necesario desde make, donde el valor llega como un unico argumento).
 
-Variables: GATEWAY_CONTAINER, SEXTANTE_CONTAINER, LEARN_TAIL.
+Sin argumentos lee config/gwc-filters.txt, que **si se versiona**: es lo que
+hace el ajuste reproducible entre entornos. Los filtros viven en el data dir de
+GeoServer (geoserver_data/gwc-layers/), que es per-host, asi que aplicarlos a
+mano por REST no llega a produccion. `make up` y `make deploy` corren este
+script.
+
+Variables: GATEWAY_CONTAINER, SEXTANTE_CONTAINER, LEARN_TAIL, FILTERS_FILE.
 
 Ejemplos:
   init-gwc-filters.sh general:cuerpos_de_agua_50k
@@ -132,9 +140,25 @@ EOF
   printf '%s\n' "$raw" | GWC_ONLY="$*" python3 "$SCRIPT_DIR/lib/gwc_learn.py"
 }
 
-[ "$#" -eq 0 ] && usage
-
 entries=()
+
+if [ "$#" -eq 0 ]; then
+  if [ ! -f "$FILTERS_FILE" ]; then
+    echo "No existe $FILTERS_FILE y no se pasaron capas." >&2
+    usage
+  fi
+  echo "Aplicando $FILTERS_FILE"
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] && entries+=("$line")
+  done < "$FILTERS_FILE"
+  if [ "${#entries[@]}" -eq 0 ]; then
+    echo "  $FILTERS_FILE no declara ninguna capa; nada que hacer."
+    exit 0
+  fi
+fi
 
 if [ "${1:-}" = "--learn" ]; then
   shift

@@ -7,6 +7,15 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.2.0] - 2026-07-31
+
+### Agregado: `config/gwc-filters.txt`, manifiesto versionado de parameter filters
+
+Los filtros viven en `geoserver_data/gwc-layers/`, que es **per-host y no se versiona**: aplicarlos
+por REST solo arreglaba el entorno donde se corria el comando. Ahora se declaran en un archivo
+versionado que `init-gwc-filters.sh` aplica sin argumentos, y que `init_all` ejecuta en cada
+`make up` y `make deploy`. Es lo que hace el ajuste reproducible entre local y produccion.
+
 ## [2.1.0] - 2026-07-31
 
 ### Agregado: `make init-gwc-filters` para declarar los parameter filters de GWC
