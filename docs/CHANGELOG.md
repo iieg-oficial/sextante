@@ -7,6 +7,18 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.2.1] - 2026-07-31
+
+### Corregido: cada arranque dejaba dos ERROR en el log de GeoServer
+
+`setup-urlchecks.sh` creaba los URLChecks con un POST y trataba el 409 como éxito, así que el
+script terminaba en verde. Pero GeoServer registra el POST duplicado como `ERROR [geoserver.rest] -
+URL check '<nombre>' already exists` con su traza de `RestException 409 CONFLICT`, y eso aparecía
+en el reporte de errores de `ecosystem-status` en cada `make up`.
+
+Ahora consulta con un GET antes de crear. Sigue siendo idempotente y ya no ensucia el log; el
+riesgo real era que dos errores esperados taparan uno de verdad.
+
 ## [2.2.0] - 2026-07-31
 
 ### Agregado: `config/gwc-filters.txt`, manifiesto versionado de parameter filters

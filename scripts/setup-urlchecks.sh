@@ -2,8 +2,9 @@
 # Configura los URLChecks que permiten a GeoServer leer ExternalGraphic desde
 # buckets internos del Acervo (SeaweedFS) cuando renderea SLDs.
 #
-# Idempotente: POST devuelve 201 al crear y 409 si ya existe. Ambos se
-# consideran exito. Solo escupe a stdout cuando crea uno nuevo.
+# Idempotente: consulta antes de crear. El POST duplicado devolvia 409, que el
+# script trataba como exito, pero GeoServer lo registra como ERROR en su log y
+# ensuciaba el reporte del ecosistema en cada arranque.
 #
 # PENDIENTE: cuando estos URLChecks se persistan via configuracion declarativa
 # (ej. provisioning del volumen geoserver_data en el bootstrap de produccion),
@@ -30,6 +31,10 @@ URLCHECKS=(
 
 ensure_urlcheck() {
   local name="$1" description="$2" regex="$3"
+  local existing
+  existing=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" \
+    -u "$AUTH" "$GEOSERVER_URL/rest/urlchecks/$name")
+  [ "$existing" = "200" ] && return 0
   local payload
   payload=$(printf '{"regexUrlCheck":{"name":"%s","description":"%s","enabled":true,"regex":"%s"}}' \
     "$name" "$description" "$regex")
