@@ -1,11 +1,8 @@
 .env
 geoserver_data/
 data_dir/
-plugins/
 backups/*.tar.gz
 restore/*.tar.gz
-server.xml
-config/global.xml
 secrets/*
 !secrets/.gitkeep
 !secrets/*.example

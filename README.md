@@ -46,7 +46,6 @@ geoserver/
 │   └── ontoy_server.py              # http.server stdlib (sin deps), lee VERSION montado
 ├── .env.example                     # Template de variables de entorno
 ├── geoserver_data/                  # Data dir persistente (no versionado)
-├── plugins/                         # JARs adicionales (no versionado)
 └── backups/                         # Backups del data dir (no versionado)
 ```
 
@@ -172,7 +171,7 @@ Si no hay backup previo, `make up` levanta GeoServer con configuración base.
 
 ## Plugins
 
-Coloca los archivos `.jar` en la carpeta `plugins/`. Se montan directamente en el classpath al iniciar el contenedor.
+Las extensiones vienen dentro de la imagen y se activan por nombre con `STABLE_EXTENSIONS` en el `.env`. No hay JARs que descargar ni versionar. Detalle en [docs/plugins.md](docs/plugins.md).
 
 ---
 

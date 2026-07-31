@@ -1,8 +1,8 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer plugins-fetch _generate-config
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-gwc-filters
 
 ##@ Inicializacion
 
-init-datastores: _generate-config ## Reapuntar los datastores al PostGIS del .env
+init-datastores: ## Reapuntar los datastores al PostGIS del .env
 	@$(LIB)
 	banner 'INIT' 'datastores'
 	rule
@@ -20,12 +20,8 @@ init-cultivos-layer: ## Provisionar la capa de cultivos
 	rule
 	bash scripts/init-cultivos-layer.sh
 
-plugins-fetch: ## Descargar los JARs de extensions faltantes
+init-gwc-filters: ## Declarar parameter filters de GWC (ENV y CQL_FILTER) en una o mas capas
 	@$(LIB)
-	banner 'PLUGINS'
+	banner 'INIT' 'gwc filters'
 	rule
-	bash scripts/fetch-plugins.sh
-
-_generate-config:
-	@$(LIB)
-	generate_config
+	bash scripts/init-gwc-filters.sh "$(LAYERS)"

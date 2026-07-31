@@ -7,6 +7,207 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.1.0] - 2026-07-31
+
+### Agregado: `make init-gwc-filters` para declarar los parameter filters de GWC
+
+Sin declarar un parametro como `parameterFilter`, **GeoWebCache ni siquiera procesa la peticion**:
+no solo se pierde el cache, tambien el metatiling 4x4. Y sin metatiling cada tile de 256 px se
+renderiza aislado, asi que los poligonos y etiquetas que cruzan la juntura salen cortados. Ese era
+el sintoma reportado — «no cargan bien todas las tiles» — cuando en realidad todas respondian 200.
+
+El script declara `ENV` siempre (`geom:geom_iieg` / `geom:geom_inegi`, que mapalab manda en cada
+GetMap) y `CQL_FILTER` cuando se le pasa un valor. Es idempotente: reemplaza los filtros que
+gestiona y respeta los demas, como el `styleParameterFilter` de STYLES.
+
+```
+make init-gwc-filters LAYERS="general:cuerpos_de_agua_50k"
+make init-gwc-filters LAYERS="economia:cultivos=prediccion = 'Agave'"
+make init-gwc-filters LAYERS="general:cuerpos_de_agua_50k;economia:cultivos=prediccion = 'Agave'"
+```
+
+Los valores de CQL llevan espacios, asi que **el target cita `$(LAYERS)`**: sin las comillas el
+shell partia `economia:cultivos=prediccion = 'Agave'` en tres argumentos y trataba `Agave` como si
+fuera una capa. Para varias capas en una sola invocacion se separan con `;`, porque desde make el
+valor llega siempre como un unico argumento.
+
+Verificado sobre `economia:cultivos`: primera peticion MISS, segunda **HIT**. Y un valor de CQL no
+declarado se sigue sirviendo con HTTP 200 e imagen — simplemente no se cachea, que es justo lo
+deseado para la cola larga de fechas que el usuario elige a mano. Cada valor declarado multiplica
+el disco del cache, que crece por combinacion de gridset x estilo x CQL x ENV.
+
+### Agregado: `--learn`, que saca los valores del trafico real
+
+Declarar los valores a mano casi nunca funciona: tienen que coincidir **byte a byte** con lo que
+manda el visor, y mapalab envuelve el filtro de fecha en parentesis y combina varios con ` OR `.
+`--learn` los lee del log del gateway —que ya registra el `request_uri` completo— y cae al audit
+del monitor de GeoServer si no encuentra nada ahi. Probado: aprendio de una sola pasada el CQL de
+`economia:cultivos` y siete combinaciones de fecha de una capa de delitos.
+
+La segunda fuente exige activar el audit **desde la UI de GeoServer**: versionar un
+`monitor.properties` no funciona porque GeoServer reescribe el archivo en cada arranque y devuelve
+`audit.enabled` a `false`. Con el `storage=memory` por defecto su buffer rota en segundos, asi que
+en la practica la fuente util es el log del gateway.
+
+La logica quedo en `scripts/lib/gwc_filters.py` y `scripts/lib/gwc_learn.py` en vez de heredocs
+dentro del shell.
+
+### Corregido: el POST a GWC perdia los acentos
+
+Se enviaba con `Content-Type: text/xml` sin charset, asi que el servidor asumia ISO-8859-1 y un
+valor como `(prediccion = 'Maiz')` se guardaba mal: el filtro quedaba declarado pero no coincidia
+nunca. Ahora va como `text/xml; charset=UTF-8` con `--data-binary`.
+
+Procedimiento y diagnostico en `runbook/sextante.md`.
+
+## [2.0.0] - 2026-07-31
+
+### Cambiado: el servicio pasa a llamarse sextante
+
+El repo, el proyecto de Compose, los contenedores, la red interna, el slug de `/ontoy` y **la URL
+pública** dejan de llamarse `geoserver`. El software sigue siendo GeoServer: lo que cambia es el
+nombre del servicio del ecosistema, que ahora coincide con el del módulo del CMS de mariachi que
+lo administra.
+
+| | Antes | Ahora |
+|---|---|---|
+| Repo y ruta | `/IIEG/geoserver` | `/IIEG/sextante` |
+| Contenedores | `geoserver`, `geoserver-version-api` | `sextante`, `sextante-version-api` |
+| Red del proyecto | `geonetwork` | `sextante-net` |
+| URL pública | `/geoserver/…` | `/sextante/…` |
+| Variable del gateway | `GEOSERVER_HOST` | `SEXTANTE_HOST` |
+
+Las variables `GEOSERVER_*` del `.env` **no** se renombran: son del software y las consume la
+imagen kartoza. Igual `geoserver_data/`, que es el data dir de GeoServer.
+
+### Agregado: `GEOSERVER_CONTEXT_ROOT` para servir bajo `/sextante`
+
+La imagen kartoza renombra el webapp al arrancar, así que la ruta cambia de verdad — no es un
+alias del proxy: dentro del contenedor `/geoserver/` responde 404. Todo lo que construía URLs a
+mano quedó parametrizado con la variable: el `healthcheck` del compose, `wait_geoserver` y
+`set_charset` en `make/repo.sh`, los cuatro `scripts/init-*.sh` y `proxy_server.py`.
+
+`GEOSERVER_PROXY_BASE_URL` apunta ahora a `/sextante`, así que los GetCapabilities anuncian la
+ruta nueva y los clientes migran solos conforme la refrescan.
+
+### Agregado: compatibilidad indefinida para las URLs `/geoserver/…`
+
+Los clientes WMS/WFS externos (QGIS, ArcGIS, portales de otras dependencias) tienen la URL vieja
+guardada y no hay forma de inventariarlos. gateway-hub incluye
+`nginx/includes/sextante-compat-geoserver.inc`, que mantiene la ruta anterior sirviendo:
+
+- OGC (`ows`, `wms`, `wfs`, `wcs`, `gwc`) con `rewrite … last`, de modo que el tráfico vuelve a
+  entrar por los `location` de `/sextante/` y conserva caché, rate limit y bot-protection sin
+  duplicar configuración.
+- `web`, `rest`, `j_spring_security` y `ontoy` con `301` a su equivalente en `/sextante/`.
+
+No tiene fecha de caducidad técnica. Antes de retirarlo hay que medir el tráfico residual de
+`/geoserver/` por `Referer` y `User-Agent` en los logs del gateway.
+
+**Efecto conocido:** durante la convivencia el caché del gateway guarda dos entradas por tile,
+porque `proxy_cache_key` usa `$request_uri` y `rewrite` no lo reescribe.
+
+### Cambiado: los repos que lo consumen
+
+- **gateway-hub**: `upstream sextante`, includes renombrados, zonas `sextante_cache` y
+  `sextante_download`, caché en `/var/cache/nginx/sextante`, `robots.txt` y las listas de
+  `envsubst` del `Dockerfile`. **Requiere rebuild de la imagen**: los includes viajan dentro.
+- **mariachi** y **mapalab**: `GEOSERVER_URL` y `VITE_GEOSERVER_URL` a `/sextante/`. El de mapalab
+  es build-time, así que necesita rebuild del frontend.
+- **huachicol**: slug `sextante`, etiqueta `Sextante` y el sidecar en `sextante-version-api:8088`.
+
+## [1.33.0] - 2026-07-31
+
+### Cambiado: GeoServer 2.28.4 a 3.0.0
+
+Primera version mayor del proyecto GeoServer. El salto arrastra toda la plataforma: **Java 17 a
+21.0.11**, **Tomcat 9 a 11.0.24** (Jakarta EE Servlet 6.1), GeoTools 34.4 a 35 y GeoWebCache
+1.28.4 a 2.0.0. El motor de proceso de imagenes pasa de JAI a **ImageN**.
+
+Las 153 capas y los 12 workspaces quedaron identicos, `resourceErrorHandling` no reporto ninguna
+capa saltada y el arranque no tomo mas tiempo que en 2.28.4 (18 s).
+
+Verificado tras un ciclo `down`/`up` completo: WMS 1.1.1 y 1.3.0, WFS 1.0.0 y 2.0.0, WCS 1.0.0,
+1.1.1 y 2.0.1, GetMap vectorial y de mosaico con dimension `TIME`, GetFeature en GeoJSON y
+GeoPackage, y las 23 fuentes Garet.
+
+### Cambiado: el bloque `<jai>` de `global.xml` se reduce a siete claves
+
+ImageN es Java puro, asi que desaparecen los ajustes de aceleracion nativa y los de JAI-EXT. Del
+template se retiraron `pngAcceleration`, `jpegAcceleration`, `allowNativeMosaic`,
+`allowNativeWarp`, `pngEncoderType` y el bloque `<jaiext>` completo con sus 22 operadores. El
+elemento `<jai>` **sigue existiendo** y conserva `allowInterpolation`, `recycling`, `tilePriority`,
+`tileThreads`, `memoryCapacity`, `memoryThreshold` e `imageIOCache`.
+
+La lista se tomo del `global.xml` de referencia que la propia imagen trae en
+`/usr/local/tomcat/data/global.xml`, no de la documentacion: es la forma de saber que acepta la
+version sin arriesgar el data dir real.
+
+### Sin impacto: los modulos que 3.0 degrado a extension
+
+GeoServer 3 saca del core WCS 1.0 y 1.1, WorldImage, ArcGRID y KML, y elimina el datastore H2.
+Nada de eso nos afecta: la imagen kartoza los sigue empacando —WCS 1.0/1.1, KML y KMZ responden
+igual que antes— y el despliegue no usa H2, WorldImage ni ArcGRID. Los rasters son GeoTIFF sobre
+ImageMosaic con indice shapefile, y no hay NetCDF.
+
+### Sin cambios: el tuning de JVM sobrevive a Java 21
+
+`INITIAL_MEMORY`, `MAXIMUM_MEMORY` y `ADDITIONAL_JAVA_STARTUP_OPTIONS` se siguen aplicando igual y
+no hay duplicacion de flags. Medido en produccion: Metaspace 139 MB contra un tope de 1 GB, old
+gen 22 MB de 756 MB y cero full GC. La trampa de `jstat -gcutil` sigue vigente — su columna `M`
+marca 99 % porque es `used/committed`, no `used/max`; hay que usar `-gc`.
+
+## [1.32.0] - 2026-07-31
+
+### Cambiado: GeoServer 2.27.0 a 2.28.4
+
+Escala previa al salto a GeoServer 3. La documentacion oficial solo garantiza la migracion del
+directorio de datos **desde 2.28.x**, asi que 2.27 no es un origen soportado para el 3.0. Sube
+GeoTools de 33 a 34.4 y GeoWebCache de 1.27.0 a 1.28.4; Tomcat y Java no cambian. Las 153 capas y
+los 12 workspaces quedaron identicos.
+
+### Cambiado: las extensiones se activan con `STABLE_EXTENSIONS`
+
+`geopkg-output-plugin` y `wps-download-plugin` ya vienen dentro de la imagen kartoza y se activan
+con una variable. Se retiraron los seis bind mounts de JARs, `scripts/fetch-plugins.sh` y el
+target `plugins-fetch`, que descargaban a mano unos JARs que ademas habia que mantener alineados
+a la version de GeoServer. Verificado: `geopkg` aparece como formato de salida WFS y los procesos
+`gs:Download*` en las capabilities de WPS.
+
+### Corregido: los bind mounts `:ro` tumbaban el arranque en 2.28.4
+
+2.28.4 reescribio `fix_permissions` para hacer `chown` sobre sus directorios, y el entrypoint
+corre con `set -e`: cualquier bind mount de solo lectura en esas rutas aborta el arranque. El
+contenedor quedaba en crashloop con
+`chown: changing ownership of '/usr/share/fonts/custom': Read-only file system`.
+
+Las rutas afectadas son `/usr/share/fonts/`, el `data_dir`, `/settings`, `/scripts` y
+`/docker-entrypoint-geoserver.d` — es decir, tambien las vias "oficiales" de configuracion
+externa de la imagen. La unica ruta que kartoza no toca es `/opt/geoserver/`, asi que todo lo
+montado en solo lectura vive ahi y `entrypoint-wrapper.sh` lo copia a su destino final:
+`wms.xml`, `wfs.xml`, `csp.xml` al data dir y las fuentes a `/usr/share/fonts/opentype`.
+
+### Corregido: el `server.xml` propio nunca se estaba aplicando
+
+El wrapper lo escribia en `/usr/local/tomcat/conf/server.xml` y despues la imagen lo regeneraba
+con `xsltproc` en `setup_tomcat_ssl_status`, pisandolo. Ahora se escribe en `/settings/server.xml`,
+que esa misma funcion copia tal cual cuando existe. Verificado: el connector ya sale con
+`proxyName`, `scheme` y `secure` propios.
+
+### Eliminado: `generate_config` y `apply_global_config`
+
+Hacian `envsubst` en el host hacia `server.xml` y `config/global.xml`, archivos que el compose no
+monta — el wrapper hace ese mismo reemplazo dentro del contenedor sobre los `.template`. Y
+`apply_global_config` copiaba al data dir desde el host, donde el usuario no tiene permiso de
+escritura (el directorio es del uid 2000): fallaba en silencio por su `|| true`. Con ellas se
+retiran el target `_generate-config` y sus llamadas en `up`, `deploy` y `restore`.
+
+### Corregido: `make backup` dejaba `.tmp` huerfanos
+
+Solo borraba `global.xml.*.tmp`; el data dir acumulaba ademas `wfs.xml.*.tmp` (habia siete). El
+`find` ahora cubre los tres patrones. `restore` extrae unicamente `data_dir`, asi que sigue
+aceptando los respaldos anteriores, que incluian `plugins/`.
+
 ## [1.31.0] - 2026-07-30
 
 ### Cambiado: Makefile homologado con el resto del ecosistema

@@ -4,6 +4,7 @@ import urllib.error
 import os
 
 GEOSERVER_HOST = os.environ.get('GEOSERVER_HOST', 'localhost')
+CONTEXT_ROOT = os.environ.get('GEOSERVER_CONTEXT_ROOT', 'sextante')
 GEOSERVER = f'http://{GEOSERVER_HOST}:8080'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -13,7 +14,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
     def do_GET(self):
-        if self.path.startswith('/geoserver/'):
+        if self.path.startswith(f'/{CONTEXT_ROOT}/'):
             self.proxy_request()
         else:
             super().do_GET()

@@ -1,27 +1,13 @@
 BACKUP_DIR='backups'
 GEOSERVER_WAIT_MAX=60
 
-generate_config() {
-    set -a
-    . ./.env
-    set +a
-    envsubst <server.xml.template >server.xml
-    envsubst <config/global.xml.template >config/global.xml
-    row 'Config' 'generada' "$C_GREEN" 'server.xml, config/global.xml'
-}
-
-apply_global_config() {
-    cp -f config/global.xml geoserver_data/global.xml 2>/dev/null &&
-        chmod 666 geoserver_data/global.xml || true
-}
-
 wait_geoserver() {
     local attempts=0
-    until docker exec geoserver curl -sf http://localhost:8080/geoserver/web/ >/dev/null 2>&1; do
+    until docker exec sextante curl -sf http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}/web/ >/dev/null 2>&1; do
         attempts=$((attempts + 1))
         if [ "$attempts" -ge "$GEOSERVER_WAIT_MAX" ]; then
             printf '\n'
-            docker logs geoserver --tail 20 2>&1 | while IFS= read -r line; do
+            docker logs sextante --tail 20 2>&1 | while IFS= read -r line; do
                 printf '         %s\n' "$line"
             done
             fail "GeoServer:no respondio despues de $((GEOSERVER_WAIT_MAX * 5))s" \
@@ -33,12 +19,12 @@ wait_geoserver() {
 
 set_charset() {
     local user pass
-    user=$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2)
-    pass=$(docker exec geoserver env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)
-    docker exec geoserver curl -sf -u "$user:$pass" -X PUT \
+    user=$(docker exec sextante env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2)
+    pass=$(docker exec sextante env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)
+    docker exec sextante curl -sf -u "$user:$pass" -X PUT \
         -H 'Content-Type: application/json' \
         -d '{"global":{"settings":{"charset":"UTF-8"}}}' \
-        http://localhost:8080/geoserver/rest/settings >/dev/null 2>&1 || true
+        http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}/rest/settings >/dev/null 2>&1 || true
 }
 
 init_all() {

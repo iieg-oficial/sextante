@@ -20,7 +20,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-GEOSERVER_URL="http://localhost:8080/geoserver"
+GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
 URLCHECKS=(

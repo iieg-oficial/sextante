@@ -1,4 +1,4 @@
-name: geoserver
+name: sextante
 
 x-logging: &logging
   driver: json-file
@@ -15,9 +15,9 @@ x-host-gateway: &host-gateway
   - "host.docker.internal:host-gateway"
 
 services:
-  geoserver:
-    image: kartoza/geoserver:2.27.0
-    container_name: geoserver
+  sextante:
+    image: kartoza/geoserver:3.0.0
+    container_name: sextante
     restart: unless-stopped
     ports:
       - "${GEOSERVER_BIND_ADDR:?}:${GEOSERVER_PORT:?}:8080"
@@ -27,7 +27,9 @@ services:
       GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER:?}
       GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:?}
       RESET_ADMIN_CREDENTIALS: ${RESET_ADMIN_CREDENTIALS:?}
+      GEOSERVER_CONTEXT_ROOT: ${GEOSERVER_CONTEXT_ROOT:?}
       GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR:?}
+      STABLE_EXTENSIONS: ${STABLE_EXTENSIONS:?}
       ENABLE_JSONP: ${ENABLE_JSONP:?}
       MAX_FILTER_RULES: ${MAX_FILTER_RULES:?}
       OPTIMIZE_LINE_WIDTH: ${OPTIMIZE_LINE_WIDTH:?}
@@ -54,40 +56,34 @@ services:
     entrypoint: /opt/geoserver/scripts/entrypoint-wrapper.sh
     volumes:
       - ./geoserver_data:/opt/geoserver/data_dir
-      - ./plugins/gs-geopkg-output-core-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-core-2.27.0.jar:ro
-      - ./plugins/gs-geopkg-output-wfs-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-wfs-2.27.0.jar:ro
-      - ./plugins/gs-geopkg-output-wms-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-geopkg-output-wms-2.27.0.jar:ro
-      - ./plugins/gs-wps-download-2.27.0.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/gs-wps-download-2.27.0.jar:ro
-      - ./plugins/jcodec-0.2.3.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/jcodec-0.2.3.jar:ro
-      - ./plugins/jcodec-javase-0.2.3.jar:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/jcodec-javase-0.2.3.jar:ro
       - ./server.xml.template:/opt/geoserver/server.xml.template:ro
       - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
       - ./config/global.xml.template:/opt/geoserver/global.xml.template:ro
       - ./config/controlflow.properties.template:/opt/geoserver/controlflow.properties.template:ro
-      - ./config/wms.xml:/opt/geoserver/data_dir/wms.xml:ro
-      - ./config/wfs.xml:/opt/geoserver/data_dir/wfs.xml:ro
-      - ./config/security/csp.xml:/opt/geoserver/data_dir/security/csp.xml:ro
-      - ./fonts:/usr/share/fonts/custom:ro
+      - ./config/wms.xml:/opt/geoserver/config/wms.xml:ro
+      - ./config/wfs.xml:/opt/geoserver/config/wfs.xml:ro
+      - ./config/security/csp.xml:/opt/geoserver/config/csp.xml:ro
+      - ./fonts:/opt/geoserver/fonts:ro
     healthcheck:
       <<: *healthcheck
-      test: ["CMD-SHELL", "curl -fsI http://localhost:8080/geoserver/web/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsI http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:?}/web/ >/dev/null || exit 1"]
       timeout: 10s
       start_period: 180s
     extra_hosts: *host-gateway
     networks:
-      - geonetwork
+      - sextante-net
       - iieg-network
     logging: *logging
 
   version-api:
     build: ./version-api
-    container_name: geoserver-version-api
+    container_name: sextante-version-api
     restart: unless-stopped
     ports:
       - "${VERSION_API_BIND_ADDR:?}:${VERSION_API_PORT:?}:8088"
     environment:
-      ONTOY_SERVICE: geoserver
-      ONTOY_COMPOSE_PROJECT: geoserver
+      ONTOY_SERVICE: sextante
+      ONTOY_COMPOSE_PROJECT: sextante
       ONTOY_DISK_PATH: ${ONTOY_DISK_PATH:?}
     volumes:
       - ./VERSION:/app/VERSION:ro
@@ -100,7 +96,7 @@ services:
     logging: *logging
 
 networks:
-  geonetwork:
+  sextante-net:
     driver: bridge
   iieg-network:
     external: true
