@@ -1,4 +1,4 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters gwc-seed
 
 ##@ Inicializacion
 
@@ -31,3 +31,9 @@ init-gwc-filters: ## Declarar parameter filters de GWC (ENV y CQL_FILTER) en una
 	banner 'INIT' 'gwc filters'
 	rule
 	bash scripts/init-gwc-filters.sh "$(LAYERS)"
+
+gwc-seed: ## Pre-generar tiles de las capas de config/gwc-seed.txt (--status, --stop)
+	@$(LIB)
+	banner 'GWC' 'seed'
+	rule
+	bash scripts/gwc-seed.sh $(ARGS)

@@ -7,6 +7,50 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.4.0] - 2026-08-06
+
+### Agregado: seeding de GeoWebCache, con las capas iniciales leidas del catalogo
+
+El cache de tiles solo ayuda a partir de la segunda visita: el primer visitante de cada zona paga
+el render completo. Se nota en cualquier despliegue nuevo, donde el blobstore arranca vacio, y
+despues de purgar o regenerar datos. No habia nada en el ecosistema para pre-generarlos.
+
+`scripts/gwc-seed.sh` encola seeds por REST. `--auto` **no usa una lista fija**: consulta
+`/api/layers/initial-order` y `/api/layers/tree` de mapalab (`MAPALAB_API_URL`, nueva en el
+`.env`) y siembra las capas con las que arranca el visor, asi que si esas capas cambian el
+siguiente despliegue siembra las nuevas sin que nadie edite configuracion. Les suma
+`config/gwc-seed-auto.txt`, donde van las caras que no estan en la vista inicial. Si el catalogo
+no responde, avisa y sigue con el archivo.
+
+Corre dentro de `make up` y `make deploy` **sin alargarlos**: GWC siembra en background y el
+script vuelve en segundos. El tipo de peticion es `seed`, no `reseed`, asi que un `up` repetido
+solo rellena lo que falte. `make gwc-seed` lanza el catalogo completo (`config/gwc-seed.txt`),
+`ARGS=--status` da el avance y `ARGS=--stop` cancela.
+
+Una capa con `CQL_FILTER` se siembra una vez por cada combinacion declarada en
+`config/gwc-filters.txt` — una sola fuente de verdad para los CQL, sin duplicar configuracion.
+Es lo que hace util sembrar `economia:cultivos`: son 8 capas del visor sobre el mismo featuretype
+de 346 836 poligonos.
+
+Medido en el espejo, sobre Jalisco:
+
+| | Disco | Tiempo |
+|---|---|---|
+| Las 32 capas del catalogo, z6-13 | **775 MB** | **4 min** |
+| `cuerpos_de_agua_50k` z14 (solo ese nivel) | +150 MB | 1 min 23 s |
+| `cuerpos_de_agua_50k` z15 (solo ese nivel) | +570 MB | 6 min 39 s |
+
+Cada nivel pesa mas que todo lo anterior junto: ~6 GB hasta z14, ~25 GB hasta z15 y ~96 GB hasta
+z16. El default es z13 porque cubre los zooms de uso real a un costo despreciable.
+
+### Corregido: un parameter filter fallido tumbaba el despliegue del ecosistema
+
+`init-gwc-filters.sh` terminaba con `[ "$fail" -eq 0 ]`, asi que dos layer groups sin filtro
+—`general:limite_iieg` y `general:limite_inegi`— hacian fallar `make deploy` y, con el,
+`ecosystem-deploy` entero. Esta desproporcionado: un filtro que falta degrada el cache, no rompe
+el servicio, y el resto de los `init-*` del repo ya avisan y siguen. Ahora imprime que capas
+quedaron sin cache y por que, y deja pasar el despliegue.
+
 ## [2.3.0] - 2026-08-06
 
 ### Agregado: `init-curvas-render-layer.sh` publica la capa de curvas subdividida

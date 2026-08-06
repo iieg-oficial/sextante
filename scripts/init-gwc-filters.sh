@@ -220,4 +220,14 @@ for layer in "${order[@]}"; do
 done
 
 echo "Filtros aplicados: $ok · con error: $fail"
-[ "$fail" -eq 0 ]
+
+if [ "$fail" -gt 0 ]; then
+  cat >&2 <<EOF
+WARNING: $fail capa(s) quedaron sin parameter filter y se serviran sin cache.
+  El despliegue continua: un filtro que falta degrada el rendimiento, no rompe el servicio.
+  Causa habitual: la capa listada en config/gwc-filters.txt ya no existe en GeoServer,
+  o es un layer group cuyo XML de GWC no acepta el POST. Revisa las lineas con 'x' de arriba.
+EOF
+fi
+
+exit 0

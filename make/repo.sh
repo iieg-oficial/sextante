@@ -34,6 +34,7 @@ init_all() {
     run_step 'Gridsets' bash scripts/init-gridsets.sh
     run_step 'URLChecks' bash scripts/setup-urlchecks.sh
     run_step 'GWC filters' bash scripts/init-gwc-filters.sh
+    run_step 'GWC seed' bash scripts/gwc-seed.sh --auto
 }
 
 clean_data_dir() {

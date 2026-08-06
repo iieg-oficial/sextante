@@ -1,0 +1,19 @@
+# Capas caras que se siembran en cada `make up` y `make deploy`, ADEMAS de las
+# que el visor enciende al abrirse.
+#
+# Las iniciales NO se listan aqui: `gwc-seed.sh --auto` las lee del catalogo de
+# mapalab (`/api/layers/initial-order`), asi que si algun dia cambian, el
+# siguiente despliegue siembra las nuevas sin tocar este archivo. Aqui van solo
+# las que no estan en la vista inicial y conviene tener calientes de todos modos.
+#
+# El resto del catalogo esta en gwc-seed.txt y se lanza a mano con `make gwc-seed`.
+#
+# No alarga el despliegue: GWC siembra en background, el script encola y vuelve en
+# segundos. Y el tipo de peticion es `seed`, no `reseed`, asi que un `up` repetido
+# no regenera lo que ya existe — solo rellena lo que falte.
+#
+# Una capa con CQL_FILTER se siembra una vez por cada combinacion declarada en
+# gwc-filters.txt. Por eso cultivos vale la pena aqui: son 8 capas del visor sobre
+# el mismo featuretype de 346 836 poligonos.
+
+economia:cultivos

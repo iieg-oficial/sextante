@@ -1,0 +1,70 @@
+# Capas que se pre-generan en GeoWebCache con scripts/gwc-seed.sh.
+#
+# Sin seeding, el primer visitante de cada zona paga el render completo: el cache
+# solo ayuda a partir de la segunda visita. Se nota sobre todo en un despliegue
+# nuevo, donde el blobstore arranca vacio, y despues de purgar o regenerar datos.
+#
+# Formato:  workspace:capa            -> niveles por defecto (GWC_SEED_ZOOM_MIN..MAX)
+#           workspace:capa=6-14       -> esos niveles para esta capa
+#
+# Solo tiene sentido sembrar capas que NO mandan CQL_FILTER: las que lo llevan
+# —fijo en `cql_filter`, o generado por `default_date`/`time_enabled`— dependen de
+# que el usuario elija una fecha, y sembrar una combinacion que nadie pide solo
+# gasta disco. Esas capas se atienden con `init-gwc-filters.sh --learn` primero.
+# La lista sale del catalogo:
+#
+#   SELECT DISTINCT w.geoserver_workspace || ':' || l.geoserver_layer
+#   FROM mapalab.layers l JOIN mapalab.workspaces w ON w.alias = l.workspace_alias
+#   WHERE l.node_type='leaf' AND l.deleted_at IS NULL AND l.disabled=false
+#     AND l.geoserver_layer IS NOT NULL AND l.tiled = true ORDER BY 1;
+#
+# Disco y tiempo, MEDIDOS en el espejo sobre Jalisco (no estimados):
+#
+#   las 32 capas de este archivo, z6-13   775 MB     4 min
+#
+# Cada nivel extra pesa mas que todo lo anterior junto. Sobre una capa media
+# (`general:cuerpos_de_agua_50k`):
+#
+#   z6-13    58 MB
+#   z14    +150 MB    (1 min 23 s)
+#   z15    +570 MB    (6 min 39 s)   -> 778 MB acumulados
+#
+# Extrapolado a las 32 capas: ~6 GB hasta z14, ~25 GB hasta z15 y ~96 GB hasta
+# z16, con muchas horas de siembra. Por eso el default es z13: cubre los zooms
+# que la gente usa a un costo despreciable. Vigilar con `du -sh geoserver_data/gwc/`.
+
+eventos:centros_comerciales
+eventos:ciclovias
+eventos:cierres_viales
+eventos:elementos
+eventos:entradas_amg
+eventos:estaciones_mibici
+eventos:estaciones_tp_masivo
+eventos:eventos
+eventos:fifa_fan_festival
+eventos:flujo_estaciones_mimacro
+eventos:lineas_tp_masivo
+eventos:loop_de_accesibilidad
+eventos:loop_de_transporte
+eventos:paradas_l1
+eventos:public_viewing
+eventos:pudo
+eventos:puntos_ascensos_descensos_plataformas
+eventos:puntos_fan_fest
+eventos:r01_ruta_especial_transporte_publico
+eventos:ride_estadio
+eventos:rutas_regionales
+eventos:sitios_interes
+eventos:ultima_milla
+general:cabeceras_municipales
+general:caminos_2012
+general:cuerpos_de_agua_50k
+general:limite_municipal
+general:limite_municipal_inegi
+general:regiones
+recursos_y_calidad_de_vida:area_de_proteccion_bosque_la_primavera
+recursos_y_calidad_de_vida:areas_naturales_protegidas
+
+# Las curvas de nivel son la capa mas cara de renderizar aunque ya use la tabla
+# subdividida, asi que se siembra un nivel mas que el resto.
+general:curvas_de_nivel_render=6-14
