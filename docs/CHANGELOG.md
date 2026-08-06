@@ -36,12 +36,31 @@ Medido en el espejo, sobre Jalisco:
 
 | | Disco | Tiempo |
 |---|---|---|
-| Las 32 capas del catalogo, z6-13 | **775 MB** | **4 min** |
+| Las 32 capas del catalogo, z6-13 | 775 MB | 4 min |
 | `cuerpos_de_agua_50k` z14 (solo ese nivel) | +150 MB | 1 min 23 s |
 | `cuerpos_de_agua_50k` z15 (solo ese nivel) | +570 MB | 6 min 39 s |
 
-Cada nivel pesa mas que todo lo anterior junto: ~6 GB hasta z14, ~25 GB hasta z15 y ~96 GB hasta
-z16. El default es z13 porque cubre los zooms de uso real a un costo despreciable.
+Cada nivel pesa mas que todo lo anterior junto, con un factor medido de 2.6x (curvas, que
+comprimen mejor) a 3.75x (poligonos municipales). **El default es `z6-15`**: cubre hasta nivel de
+manzana —4.5 m/pixel— y para las 7 capas del seed automatico rondan los **6.5 GB**
+(`cabeceras_municipales` 619 MB y `cuerpos_de_agua_50k` 778 MB medidas de punta a punta, el resto
+proyectado). Bajar a z18 serian ~237 GB solo esas siete, y no aportan: un poligono municipal a
+0.56 m/pixel muestra lo mismo que a z13, solo mas grande.
+
+Sembrar con el servicio arriba no lo degrada de forma apreciable: con 2 hilos, medido contra el
+gateway, `/mapalab/` pasa de 12 a 17-64 ms y un tile cacheado de 11 a 15-25 ms.
+
+### Agregado: cron diario del seed y `--refresh` para datos que cambiaron
+
+`make cron` instala el seed a las **04:30**, y `make up`/`make deploy` lo dejan puesto solos
+(idempotente: si ya existe no lo duplica). No a las 04:00 a proposito: a esa hora corre
+`run_refresh_layer_tree.py` en dataengine, que es justo el catalogo del que `--auto` lee las capas
+iniciales.
+
+El cron es barato porque **GWC salta los tiles que ya existen**: medido, 83 s la primera siembra de
+una capa y 6 s la segunda. El reverso es que no detecta datos cambiados — si se recarga una capa o
+se refresca su vista materializada, los tiles viejos se siguen sirviendo. Para eso esta
+`gwc-seed.sh --refresh`, que trunca el cache de la capa antes de sembrarla.
 
 ### Corregido: un parameter filter fallido tumbaba el despliegue del ecosistema
 

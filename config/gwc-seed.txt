@@ -18,20 +18,29 @@
 #   WHERE l.node_type='leaf' AND l.deleted_at IS NULL AND l.disabled=false
 #     AND l.geoserver_layer IS NOT NULL AND l.tiled = true ORDER BY 1;
 #
-# Disco y tiempo, MEDIDOS en el espejo sobre Jalisco (no estimados):
-#
-#   las 32 capas de este archivo, z6-13   775 MB     4 min
-#
-# Cada nivel extra pesa mas que todo lo anterior junto. Sobre una capa media
-# (`general:cuerpos_de_agua_50k`):
+# El default es z6-15 (GWC_SEED_ZOOM_MAX). Peso por nivel, medido sobre una capa
+# media, `general:cuerpos_de_agua_50k`:
 #
 #   z6-13    58 MB
 #   z14    +150 MB    (1 min 23 s)
 #   z15    +570 MB    (6 min 39 s)   -> 778 MB acumulados
 #
-# Extrapolado a las 32 capas: ~6 GB hasta z14, ~25 GB hasta z15 y ~96 GB hasta
-# z16, con muchas horas de siembra. Por eso el default es z13: cubre los zooms
-# que la gente usa a un costo despreciable. Vigilar con `du -sh geoserver_data/gwc/`.
+# Cada nivel pesa mas que todo lo anterior junto: factor de 2.6x en las curvas,
+# que comprimen mejor, a 3.75x en los poligonos municipales. Las 32 capas de este
+# archivo a z13 son 775 MB y 4 min, medidos.
+#
+# Las 7 capas del seed automatico a z15 rondan los 6.5 GB. Dos de ellas medidas
+# de punta a punta: cabeceras_municipales 619 MB (5 min 33 s) y cuerpos_de_agua
+# 778 MB; el resto proyectado con el factor de cada capa.
+#
+# z15 es el ultimo nivel que aporta: son 4.5 m/pixel, detalle de manzana. Mas
+# abajo un poligono municipal muestra lo mismo, solo mas grande, y el costo se
+# dispara: ~21 GB a z16 y ~237 GB a z18 para esas mismas 7 capas. Lo que no se
+# siembre se llena solo con el trafico real.
+#
+# Sembrar con el servicio arriba no lo tumba: con 2 hilos, medido contra el
+# gateway, /mapalab/ pasa de 12 a 17-64 ms y un tile cacheado de 11 a 15-25 ms.
+# Vigilar el disco con `du -sh geoserver_data/gwc/`.
 
 eventos:centros_comerciales
 eventos:ciclovias
