@@ -7,6 +7,44 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.3.0] - 2026-08-06
+
+### Agregado: `init-curvas-render-layer.sh` publica la capa de curvas subdividida
+
+La migración `0026_curvas_de_nivel_render` de dataengine materializa
+`mapa_base.curvas_de_nivel_render` y deja anotado un «paso manual posterior (GeoServer, no DB)»:
+publicar el featuretype. Ese paso nunca se ejecutó, así que la tabla existía con 180 865 filas y
+el visor seguía pidiendo la tabla original. Medido sobre el mismo tile de 256 px en caliente:
+**3 010 ms/tile contra 42 ms**.
+
+El script publica `general:curvas_de_nivel_render` con SRS nativo 3857, le asigna el estilo
+`general:curvas_de_nivel` y la deja con WFS deshabilitado y `queryable=false`. Es idempotente
+(*skip* si ya existe, `--force` para reaplicar) y corre dentro de `make up` y `make deploy`, junto
+a `init-cultivos-layer.sh`. Queda pendiente el `UPDATE` de `mapalab.layers.geoserver_layer`, que
+vive en la base y no viaja en el despliegue.
+
+### Agregado: el filtro de ENV se declara en las 121 capas del catálogo
+
+`gwc-filters.txt` tenía 4 entradas. El visor manda `ENV=geom:geom_iieg` en **cada** GetMap, y GWC
+no cachea ningún parámetro que no esté declarado como `parameterFilter`: sin el filtro, la capa
+responde MISS siempre. Medido sobre `demografia:poblacion` con un tile alineado al gridset, la
+segunda petición pasa de MISS a HIT en cuanto el filtro existe.
+
+La consecuencia importante es al revés: **marcar una capa como `tiled` sin declararle el filtro de
+ENV la deja en ~70 peticiones por pantalla sin caché, contra 1 sola de `ImageWMS`**. El archivo
+ahora lista las 121 capas del catálogo y trae en la cabecera la consulta que regenera la lista.
+
+### Corregido: dos capas de cada 121 fallaban al declararles filtros
+
+Ambas devolvían `HTTP 500 · Duplicate field parameterFilters`, que no apunta a la causa:
+
+- GWC serializa el `styleParameterFilter` con
+  `<allowedStyles class="java.util.Collections$UnmodifiableSet">` y su propio XStream no lo vuelve
+  a leer. Se quita el atributo `class` antes del POST y el filtro de estilos se conserva.
+- `<parameterFilters/>` self-closing —el caso de los layer groups `general:limite_iieg` y
+  `general:limite_inegi`— no coincidía con la búsqueda de la etiqueta de apertura, así que el
+  script añadía un segundo bloque.
+
 ## [2.2.2] - 2026-07-31
 
 ### Agregado: `VERBOSE=1` en los targets que usan `run_step`

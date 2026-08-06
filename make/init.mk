@@ -1,4 +1,4 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer init-gwc-filters
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters
 
 ##@ Inicializacion
 
@@ -19,6 +19,12 @@ init-cultivos-layer: ## Provisionar la capa de cultivos
 	banner 'INIT' 'cultivos'
 	rule
 	bash scripts/init-cultivos-layer.sh
+
+init-curvas-render-layer: ## Publicar la capa de curvas de nivel subdividida (tabla de render)
+	@$(LIB)
+	banner 'INIT' 'curvas render'
+	rule
+	bash scripts/init-curvas-render-layer.sh
 
 init-gwc-filters: ## Declarar parameter filters de GWC (ENV y CQL_FILTER) en una o mas capas
 	@$(LIB)

@@ -30,6 +30,9 @@ def main() -> None:
         flags=re.S,
     )
 
+    xml = re.sub(r'(<allowedStyles) class="[^"]*"', r"\1", xml)
+    xml = re.sub(r"<parameterFilters\s*/>", "<parameterFilters>\n  </parameterFilters>", xml)
+
     blocks = [build_filter("ENV", env_default, env_values)]
 
     cql_values = [v for v in cql.split("\x1f") if v]
