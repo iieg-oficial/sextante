@@ -7,6 +7,46 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.5.0] - 2026-08-06
+
+### Agregado: exportar e importar el cache de tiles entre entornos
+
+`scripts/gwc-cache.sh export|import` (targets `gwc-export` y `gwc-import`) empaqueta el blobstore
+de GeoWebCache para llevarlo a otro entorno sin volver a sembrarlo. Pensado para **GCP**, que con
+2 cores compartidos tarda horas en lo que aqui son minutos.
+
+Los tiles son portables porque la carpeta de cada combinacion se nombra con un hash del **valor**
+de los parameter filters —`ENV=geom:geom_iieg`—, no de la instalacion, y ese valor sale de
+`config/gwc-filters.txt`, que esta versionado: mismo archivo de filtros, mismo hash, tiles
+reutilizables.
+
+`MAX_Z` (default **13**) recorta los niveles altos, que son casi todo el peso. Medido sobre las 7
+capas del seed automatico: **647 MB hasta z13, 2.1 GB hasta z14 y 7.2 GB hasta z15** — o sea que
+z14 y z15 son el 90 % del tamaño y los que menos se visitan. El paquete de z13 comprime a **490 MB
+en 4 minutos**.
+
+**Aviso:** el cache no sabe si el dato de origen cambio. Si el entorno destino tiene datos
+distintos, los tiles mostraran los del origen hasta que se trunquen. Para datos que difieren,
+sembrar en destino en vez de importar.
+
+### Agregado: `gwc-bench.sh` para medir antes y despues
+
+Pide una pantalla completa (10x7 tiles de 256 px, como el visor) por capa y reporta tiempo total y
+cuantos salieron de GWC. Mide **dentro del contenedor**, saltandose el gateway, cuyo `proxy_cache`
+devuelve la copia de la primera respuesta y enmascara el resultado.
+
+Sirve para comparar el mismo entorno antes y despues de un cambio —importar un cache, crear
+indices, tocar la JVM— en vez de estimar la mejora.
+
+### Corregido: los respaldos cargaban 13 GB de peso muerto
+
+`make backup` empaquetaba **todo** el `data_dir`, que con el seeding pasó a incluir 7.7 GB de
+tiles **regenerables con un comando**. Ademas arrastraba `heapdumps`, un archivo suelto de 5.5 GB
+del 10 de junio —un volcado de memoria de la JVM— que llevaba dos meses respaldandose.
+
+Ambos quedan excluidos. Tras restaurar, el cache se repone con `make gwc-seed ARGS=--auto` o
+importando un paquete de `gwc-export`.
+
 ## [2.4.0] - 2026-08-06
 
 ### Agregado: seeding de GeoWebCache, con las capas iniciales leidas del catalogo
