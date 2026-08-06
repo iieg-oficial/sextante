@@ -17,7 +17,7 @@ FILTERS_FILE="${FILTERS_FILE:-$PROJECT_DIR/config/gwc-filters.txt}"
 GRIDSET="${GWC_SEED_GRIDSET:-EPSG:900913}"
 BBOX="${GWC_SEED_BBOX:--11766470.2,2149050.1,-11295588.7,2601813.2}"
 ZOOM_MIN="${GWC_SEED_ZOOM_MIN:-6}"
-ZOOM_MAX="${GWC_SEED_ZOOM_MAX:-13}"
+ZOOM_MAX="${GWC_SEED_ZOOM_MAX:-15}"
 THREADS="${GWC_SEED_THREADS:-2}"
 ENV_VALUE="${GWC_SEED_ENV:-geom:geom_iieg}"
 FORMAT="${GWC_SEED_FORMAT:-image/png}"
@@ -28,8 +28,15 @@ Uso:
   gwc-seed.sh                       # siembra config/gwc-seed.txt
   gwc-seed.sh --auto                # capas iniciales del visor + config/gwc-seed-auto.txt
   gwc-seed.sh <workspace:capa> ...  # siembra solo esas capas
+  gwc-seed.sh --refresh [capa ...]  # purga el cache y vuelve a sembrar
   gwc-seed.sh --status              # avance de las tareas en curso
-  gwc-seed.sh --stop                # cancela todas las tareas de seed
+  gwc-seed.sh --stop [capa ...]     # cancela las tareas de seed en curso
+
+Sin --refresh el seed **solo rellena lo que falte**: GWC salta los tiles que ya
+existen (medido: 83 s la primera siembra de una capa, 6 s la segunda). Por eso el
+cron diario es barato. El reverso es que **no detecta datos cambiados**: si se
+recarga una capa o se refresca su vista materializada, los tiles viejos siguen
+sirviendose. Ahi hace falta --refresh, que trunca antes de sembrar.
 
 --auto lee del catalogo de mapalab (MAPALAB_API_URL) las capas que el visor
 enciende al abrirse, asi que si esas capas cambian el siguiente `up` siembra las
@@ -73,6 +80,16 @@ wait_for_gwc() {
 show_status() {
   curl -s --max-time 30 -u "$AUTH" "$GEOSERVER_URL/gwc/rest/seed.json" \
     | python3 "$SCRIPT_DIR/lib/gwc_seed_status.py"
+}
+
+truncate_layer() {
+  local layer="$1"
+  local code
+  code=$(curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
+    -X POST -H "Content-Type: text/xml" \
+    -d "<truncateLayer><layerName>${layer}</layerName></truncateLayer>" \
+    "$GEOSERVER_URL/gwc/rest/masstruncate")
+  [ "$code" = "200" ]
 }
 
 stop_all() {
@@ -177,6 +194,10 @@ seed_layer() {
     return 1
   fi
 
+  if [ "${REFRESH:-0}" = "1" ]; then
+    truncate_layer "$layer" || echo "  ! $layer: no se pudo truncar, se siembra sobre lo viejo" >&2
+  fi
+
   local -a cqls=()
   while IFS= read -r c; do [ -n "$c" ] && cqls+=("$c"); done < <(declared_cqls "$layer")
 
@@ -221,14 +242,18 @@ read_seed_file() {
 
 AUTO_FILE="${AUTO_FILE:-$PROJECT_DIR/config/gwc-seed-auto.txt}"
 
+REFRESH=0
+
 case "${1:-}" in
   --help|-h) usage ;;
   --status)  wait_for_gwc; show_status; exit 0 ;;
   --stop)    shift; wait_for_gwc; stop_all "$@"; exit 0 ;;
+  --refresh) REFRESH=1; shift ;;
 esac
+export REFRESH
 
 entries=()
-if [ "${1:-}" = "--auto" ]; then
+if [ "${1:-}" = "--auto" ] || { [ "$REFRESH" = "1" ] && [ "$#" -eq 0 ]; }; then
   if [ -n "${MAPALAB_API_URL:-}" ]; then
     iniciales=$(MAPALAB_API_URL="$MAPALAB_API_URL" python3 "$SCRIPT_DIR/lib/gwc_seed_layers.py" 2>&1)
     if [ "$?" -eq 0 ]; then

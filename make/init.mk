@@ -1,4 +1,4 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters gwc-seed
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters gwc-seed cron
 
 ##@ Inicializacion
 
@@ -32,8 +32,17 @@ init-gwc-filters: ## Declarar parameter filters de GWC (ENV y CQL_FILTER) en una
 	rule
 	bash scripts/init-gwc-filters.sh "$(LAYERS)"
 
-gwc-seed: ## Pre-generar tiles de las capas de config/gwc-seed.txt (--status, --stop)
+gwc-seed: ## Pre-generar tiles de las capas de config/gwc-seed.txt (ARGS=--auto|--status|--stop)
 	@$(LIB)
 	banner 'GWC' 'seed'
 	rule
 	bash scripts/gwc-seed.sh $(ARGS)
+
+cron: ## Instalar o desinstalar el cron del seed de GWC
+	@$(LIB)
+	banner 'CRON'
+	action=$$(pick 'Accion' 'instalar' 'desinstalar')
+	rule
+	if [ "$$action" = 'instalar' ]; then cron_install; else cron_remove; fi
+	rule
+	printf '\n'
