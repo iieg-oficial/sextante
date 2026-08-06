@@ -42,10 +42,10 @@ Medido en el espejo, sobre Jalisco:
 
 Cada nivel pesa mas que todo lo anterior junto, con un factor medido de 2.6x (curvas, que
 comprimen mejor) a 3.75x (poligonos municipales). **El default es `z6-15`**: cubre hasta nivel de
-manzana —4.5 m/pixel— y para las 7 capas del seed automatico rondan los **6.5 GB**
-(`cabeceras_municipales` 619 MB y `cuerpos_de_agua_50k` 778 MB medidas de punta a punta, el resto
-proyectado). Bajar a z18 serian ~237 GB solo esas siete, y no aportan: un poligono municipal a
-0.56 m/pixel muestra lo mismo que a z13, solo mas grande.
+manzana —4.5 m/pixel— y para las 7 capas del seed automatico son **7.0 GB**, medidos al terminar la
+siembra completa. La mas pesada es `economia:cultivos` (1902 MB, con sus dos combinaciones de CQL)
+y la mas ligera `cabeceras_municipales` (619 MB). Bajar a z18 serian ~237 GB solo esas siete, y no
+aportan: un poligono municipal a 0.56 m/pixel muestra lo mismo que a z13, solo mas grande.
 
 Sembrar con el servicio arriba no lo degrada de forma apreciable: con 2 hilos, medido contra el
 gateway, `/mapalab/` pasa de 12 a 17-64 ms y un tile cacheado de 11 a 15-25 ms.

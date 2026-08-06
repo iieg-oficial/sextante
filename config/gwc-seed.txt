@@ -29,9 +29,16 @@
 # que comprimen mejor, a 3.75x en los poligonos municipales. Las 32 capas de este
 # archivo a z13 son 775 MB y 4 min, medidos.
 #
-# Las 7 capas del seed automatico a z15 rondan los 6.5 GB. Dos de ellas medidas
-# de punta a punta: cabeceras_municipales 619 MB (5 min 33 s) y cuerpos_de_agua
-# 778 MB; el resto proyectado con el factor de cada capa.
+# Las 7 capas del seed automatico a z15 son 7.0 GB, medidos al terminar la siembra
+# completa (la proyeccion previa decia 6.5, se quedo 10% corta):
+#
+#   economia:cultivos                1902 MB   (x2 combinaciones de CQL)
+#   general:curvas_de_nivel_render   1499 MB
+#   general:limite_municipal          810 MB
+#   general:limite_iieg               799 MB
+#   general:regiones                  783 MB
+#   general:cuerpos_de_agua_50k       778 MB
+#   general:cabeceras_municipales     619 MB
 #
 # z15 es el ultimo nivel que aporta: son 4.5 m/pixel, detalle de manzana. Mas
 # abajo un poligono municipal muestra lo mismo, solo mas grande, y el costo se
