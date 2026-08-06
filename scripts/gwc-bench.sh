@@ -17,7 +17,8 @@ ZOOM="${BENCH_ZOOM:-12}"
 COLS="${BENCH_COLS:-10}"
 ROWS="${BENCH_ROWS:-7}"
 
-CAPAS_DEFAULT="general:limite_municipal general:cabeceras_municipales general:cuerpos_de_agua_50k general:curvas_de_nivel_render"
+FILTERS_FILE="${FILTERS_FILE:-$PROJECT_DIR/config/gwc-filters.txt}"
+CAPAS_DEFAULT="general:limite_municipal general:cabeceras_municipales general:cuerpos_de_agua_50k general:curvas_de_nivel_render economia:cultivos"
 
 usage() {
   cat >&2 <<'USAGE'
@@ -55,11 +56,23 @@ if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
   exit 1
 fi
 
+primer_cql() {
+  local layer="$1" line
+  [ -f "$FILTERS_FILE" ] || return 0
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    case "$line" in "$layer="*) printf '%s' "${line#*=}"; return 0 ;; esac
+  done < "$FILTERS_FILE"
+}
+
 urls_de() {
   local layer="$1" ws="${1%%:*}" ly="${1##*:}"
-  python3 - "$ws" "$ly" "$ZOOM" "$COLS" "$ROWS" "$CONTEXT" <<'PY'
+  local cql
+  cql="$(primer_cql "$layer")"
+  python3 - "$ws" "$ly" "$ZOOM" "$COLS" "$ROWS" "$CONTEXT" "$cql" <<'PY'
 import math, sys, urllib.parse
 ws, ly, z, cols, rows, ctx = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), sys.argv[6]
+cql = sys.argv[7] if len(sys.argv) > 7 else ''
 span = 40075016.68557849 / (2 ** z)
 o = -20037508.342789244
 c0 = math.floor((-11541000 - o) / span)
@@ -71,6 +84,8 @@ for i in range(cols):
         q = (f"REQUEST=GetMap&SERVICE=WMS&VERSION=1.1.0&FORMAT=image%2Fpng&STYLES="
              f"&TRANSPARENT=true&LAYERS={urllib.parse.quote(ws + ':' + ly)}&TILED=true"
              f"&ENV=geom%3Ageom_iieg&WIDTH=256&HEIGHT=256&SRS=EPSG%3A3857&BBOX={bb}")
+        if cql:
+            q += "&CQL_FILTER=" + urllib.parse.quote(cql)
         print(f"http://localhost:8080/{ctx}/{ws}/wms?{q}")
 PY
 }
