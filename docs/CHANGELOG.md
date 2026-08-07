@@ -7,6 +7,43 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.7.0] - 2026-08-07
+
+### Cambiado: la ruta del blobstore en el host se elige por nodo
+
+El volumen del blobstore tenia el lado del host fijo en `./gwc_cache`, relativo al repo. Los nodos
+del ecosistema corren sobre infraestructuras distintas —local, GCP, Proxmox y administracion— y no
+todos quieren el millon y medio de tiles en el mismo disco que el codigo.
+
+El lado del host pasa a `GWC_CACHE_HOST_DIR`, nueva en el `.env`. Son dos rutas distintas y se
+confunden con facilidad:
+
+| Variable | Donde | Varia por nodo |
+|---|---|---|
+| `GEOWEBCACHE_CACHE_DIR` | dentro del contenedor | no — es la misma imagen en todos |
+| `GWC_CACHE_HOST_DIR` | en el host | si |
+
+Una ruta relativa **tiene que llevar `./`**: sin la barra, compose la interpreta como volumen
+nombrado y aborta con `refers to undefined volume gwc_cache`, un error que no menciona el `.env`.
+
+**Al aplicarlo, las dos claves van al `.env` antes de bajar el contenedor.** El compose falla al
+interpolar, asi que un `make deploy` sin ellas no llega ni al `down`: reporta `fail`, el contenedor
+viejo sigue arriba y el nodo se queda en la version anterior.
+
+### Corregido: el deploy terminaba en `Error 1` sin instalar el cron del seed
+
+En un nodo con el crontab **vacio**, `cron_install` dejaba el cron sin instalar y hacia fallar el
+deploy entero. Las recetas corren con `-eu -o pipefail`, y ahi `crontab -l | grep -v` devuelve 1
+cuando no hay ninguna linea que conservar: el subshell muere antes del `echo` de la linea nueva y
+el `crontab -` de la derecha recibe la entrada vacia.
+
+El sintoma no apunta a nada: **todos los pasos salen `ok`** y el `make` termina en `Error 1` sin
+una linea de error propia, porque quien falla es el ultimo paso, que no imprime fila. Los filtros
+cuyo «no hay coincidencias» es legitimo se cierran con `|| true`.
+
+Mismo bug y mismo arreglo en **mariachi** (respaldo de BD y refresh de stats) y **acervo**
+(respaldo mensual). En un nodo que ya paso por esto, `crontab -l` vacio es la senal.
+
 ## [2.6.1] - 2026-08-07
 
 ### Corregido: `general:curvas_de_nivel` no cacheaba y saturaba la CPU del nodo
