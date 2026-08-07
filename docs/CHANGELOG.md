@@ -7,6 +7,29 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.6.1] - 2026-08-07
+
+### Corregido: `general:curvas_de_nivel` no cacheaba y saturaba la CPU del nodo
+
+La capa quedo fuera de `gwc-filters.txt` cuando se publico `curvas_de_nivel_render`, su version
+optimizada. Es correcto mientras todos los nodos corran un frontend que ya pida la nueva; en
+cuanto uno se queda atras, **sigue pidiendo la vieja, que sin filtro de `ENV` no cachea nunca**.
+
+Sin ese filtro GWC no procesa la peticion: el visor manda `ENV=geom:geom_iieg` en cada GetMap y
+GWC la pasa directo a WMS. No es un `MISS` que se vuelve `HIT` a la segunda — es permanente.
+
+Detectado en GCP el 2026-08-07, con el backend de mapalab 8 dias atras: 390 peticiones por hora
+renderizando en vivo a ~3 s cada una, con el `load average` en **19.59** sobre 2 cores. No aparece
+en ningun log como error; se manifiesta como saturacion de CPU intermitente.
+
+| | Antes | Despues |
+|---|---|---|
+| 2a peticion, mismo tile | 2.64 s · `MISS` | **0.019 s · `HIT`** |
+| 3a peticion, mismo tile | 2.99 s · `MISS` | **0.024 s · `HIT`** |
+
+La capa sustituida se queda declarada mientras algun nodo pueda pedirla. Para encontrar otras
+huerfanas, el barrido esta en `runbook/capas-y-tiles.md` del repo de contexto.
+
 ## [2.6.0] - 2026-08-07
 
 ### Corregido: el arranque pasaba de 1 min a casi 8 con el cache sembrado
