@@ -29,6 +29,7 @@ services:
       RESET_ADMIN_CREDENTIALS: ${RESET_ADMIN_CREDENTIALS:?}
       GEOSERVER_CONTEXT_ROOT: ${GEOSERVER_CONTEXT_ROOT:?}
       GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR:?}
+      GEOWEBCACHE_CACHE_DIR: ${GEOWEBCACHE_CACHE_DIR:?}
       STABLE_EXTENSIONS: ${STABLE_EXTENSIONS:?}
       ENABLE_JSONP: ${ENABLE_JSONP:?}
       MAX_FILTER_RULES: ${MAX_FILTER_RULES:?}
@@ -56,6 +57,7 @@ services:
     entrypoint: /opt/geoserver/scripts/entrypoint-wrapper.sh
     volumes:
       - ./geoserver_data:/opt/geoserver/data_dir
+      - ./gwc_cache:${GEOWEBCACHE_CACHE_DIR:?}
       - ./server.xml.template:/opt/geoserver/server.xml.template:ro
       - ./scripts/entrypoint-wrapper.sh:/opt/geoserver/scripts/entrypoint-wrapper.sh:ro
       - ./config/global.xml.template:/opt/geoserver/global.xml.template:ro

@@ -7,6 +7,42 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.6.0] - 2026-08-07
+
+### Corregido: el arranque pasaba de 1 min a casi 8 con el cache sembrado
+
+Tras sembrar GWC, el blobstore quedo con **1 574 496 archivos** dentro de `geoserver_data/`. El
+entrypoint de kartoza recorre el `data_dir` entero en cada arranque para verificar dueños
+(`geo_data_file_perms`), asi que **cada `make deploy` o `restart` sumaba minutos en los que el
+contenedor esta `unhealthy` y GeoServer no responde**. No es evidente: el sintoma es «esta arriba
+pero no contesta», sin relacion aparente con el cache.
+
+El blobstore sale del `data_dir` a `gwc_cache/`, via `GEOWEBCACHE_CACHE_DIR` (nueva en el `.env`).
+Medido en el espejo, mismo nodo y mismos 7.5 GB de tiles:
+
+| Blobstore | Arranque hasta `healthy` |
+|---|---|
+| Dentro de `geoserver_data/` | **7 min 44 s** |
+| En `gwc_cache/` | **1 min 29 s** |
+
+El entrypoint tambien hace `chown` sobre `GEOWEBCACHE_CACHE_DIR`, asi que la mejora no viene de
+que deje de recorrerlo; viene de sacarlo del arbol que se recorre para todo lo demas. Se midio dos
+veces (1 min 29 s y 1 min 38 s) para descartar que fuera cache de inodos.
+
+**Al aplicarlo en un nodo existente, mover el cache con `mv`** —mismo filesystem, tarda menos de un
+segundo y **preserva los dueños**—:
+
+```bash
+docker compose -p sextante -f compose.yaml down
+sudo mkdir -p gwc_cache && sudo mv geoserver_data/gwc/* gwc_cache/
+make up
+```
+
+**No hacer `chown` despues del `mv`.** El usuario dentro del contenedor es
+`geoserveruser:geoserverusers`, **uid 2000**, no el 1000 del host. Un `chown -R 1000:1000` marca el
+millon y medio de archivos como incorrectos y el entrypoint los corrige uno por uno: costo medido,
+mas de 30 minutos, y si se reinicia a la mitad **vuelve a empezar**.
+
 ## [2.5.0] - 2026-08-06
 
 ### Agregado: exportar e importar el cache de tiles entre entornos
