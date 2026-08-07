@@ -97,9 +97,15 @@ echo
 printf "%-46s %9s %8s %8s\n" "CAPA" "TIEMPO" "HIT" "MISS"
 printf -- "%.0s-" {1..76}; echo
 
+URLS_FILE="$(mktemp -t gwc-bench-urls.XXXXXX)"
+trap 'rm -f "$URLS_FILE"' EXIT
+
 for layer in "${capas[@]}"; do
-  urls_de "$layer" > /tmp/gwc-bench-urls.txt
-  docker cp /tmp/gwc-bench-urls.txt "$CONTAINER:/tmp/gwc-bench-urls.txt" >/dev/null 2>&1
+  if ! urls_de "$layer" > "$URLS_FILE"; then
+    echo "  ! $layer: no se pudieron generar las URLs, se omite" >&2
+    continue
+  fi
+  docker cp "$URLS_FILE" "$CONTAINER:/tmp/gwc-bench-urls.txt" >/dev/null 2>&1
 
   read -r ms hit miss < <(docker exec "$CONTAINER" sh -c '
     s=$(date +%s%N); hit=0; miss=0
