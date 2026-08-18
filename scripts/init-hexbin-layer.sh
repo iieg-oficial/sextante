@@ -19,7 +19,7 @@ fi
 GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
-WORKSPACE="general"
+WORKSPACE="mapalab"
 DATASTORE="mapalab_hexbin"
 SCHEMA="mapalab"
 LAYER="hexbin_agregado"
@@ -60,6 +60,16 @@ http_code() {
 }
 
 echo "Publicando $WORKSPACE:$LAYER ..."
+
+# El workspace es propio y no 'general' a proposito: init-datastores.sh fuerza
+# todos los datastores de 'general' al schema mapa_base, y se llevaria este por
+# delante en cada reapuntado.
+ws=$(http_code "$GEOSERVER_URL/rest/workspaces/$WORKSPACE.json")
+if [ "$ws" != "200" ]; then
+  code=$(http_code -XPOST -H "Content-Type: application/json" \
+    -d "{\"workspace\":{\"name\":\"$WORKSPACE\"}}" "$GEOSERVER_URL/rest/workspaces")
+  echo "  workspace creado (HTTP $code)"
+fi
 
 existe=$(http_code "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores/$DATASTORE.json")
 if [ "$existe" = "200" ]; then

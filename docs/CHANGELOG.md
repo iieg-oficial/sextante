@@ -7,6 +7,17 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.6.1] - 2026-08-18
+
+### Corregido: el hexbin va en su propio workspace, no en `general`
+
+`init-datastores.sh` fuerza **todos** los datastores del workspace `general` al schema `mapa_base`
+via `SCHEMA_MAP`. El datastore del hexbin apunta a `mapalab`, asi que cada reapuntado se lo llevaba
+por delante y GeoServer respondia `Schema 'hexbin_agregado' does not exist`.
+
+La capa pasa a `mapalab:hexbin_agregado`, en un workspace propio que el script crea si falta y que
+ningun reapuntado toca.
+
 ## [2.6.0] - 2026-08-18
 
 ### Agregado: `make init-hexbin-layer`, publica la capa del hexbin H3
