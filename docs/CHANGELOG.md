@@ -7,6 +7,21 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.6.0] - 2026-08-18
+
+### Agregado: `make init-hexbin-layer`, publica la capa del hexbin H3
+
+dataengine precalcula los conteos H3 de las capas de puntos y expone la vista
+`mapalab.hexbin_agregado` (sus migraciones 0037 y 0038). Aqui se registra en GeoServer lo que no
+vive en codigo: un datastore `mapalab_hexbin` hacia el schema `mapalab` y la capa
+`general:hexbin_agregado` en EPSG:6368.
+
+El script es idempotente: si el datastore existe lo actualiza, si la capa existe no hace nada. Usa
+las mismas `POSTGIS_*` del `.env` que el resto de datastores, asi que no hay credencial nueva.
+
+Sin esto, el visor no encuentra los conteos y cae al calculo en el navegador, que sigue funcionando
+pero con su tope de 20 000 elementos.
+
 ## [2.5.0] - 2026-08-06
 
 ### Agregado: exportar e importar el cache de tiles entre entornos

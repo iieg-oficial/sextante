@@ -1,4 +1,4 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-gwc-filters gwc-seed cron
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-hexbin-layer init-gwc-filters gwc-seed cron
 
 ##@ Inicializacion
 
@@ -19,6 +19,11 @@ init-cultivos-layer: ## Provisionar la capa de cultivos
 	banner 'INIT' 'cultivos'
 	rule
 	bash scripts/init-cultivos-layer.sh
+
+init-hexbin-layer: ## Publicar la capa del hexbin H3 precalculado por dataengine
+	@$(LIB)
+	banner 'INIT' 'hexbin layer'
+	bash scripts/init-hexbin-layer.sh
 
 init-curvas-render-layer: ## Publicar la capa de curvas de nivel subdividida (tabla de render)
 	@$(LIB)
