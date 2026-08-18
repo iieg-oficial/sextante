@@ -1,6 +1,7 @@
 .env
 geoserver_data/
 data_dir/
+gwc_cache/
 backups/*.tar.gz
 restore/*.tar.gz
 secrets/*

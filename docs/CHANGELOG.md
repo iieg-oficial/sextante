@@ -7,6 +7,15 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.6.2] - 2026-08-18
+
+### Corregido: `gwc_cache/` no estaba ignorado por git
+
+Al sacar el blobstore del `data_dir` (2.5.0), el caché quedó en la raíz del repo y sin entrada en
+`.gitignore`: aparecía como no rastreado en cada `git status` y un `git add -A` distraído lo habría
+metido al repo. En este nodo son 156 KB, pero en el espejo son **1.5 millones de archivos**, y
+además sus permisos hacen que `git status` avise de directorios que no puede leer.
+
 ## [2.6.1] - 2026-08-18
 
 ### Corregido: el hexbin va en su propio workspace, no en `general`
