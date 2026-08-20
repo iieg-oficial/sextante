@@ -42,18 +42,18 @@ cron_install() {
     local dir
     dir=$(pwd)
     mkdir -p "$dir/logs"
-    (
-        crontab -l 2>/dev/null | grep -v 'sextante-gwc-seed'
+    {
+        crontab -l 2>/dev/null | grep -v 'sextante-gwc-seed' || true
         echo "30 4 * * * cd $dir && make gwc-seed ARGS=--auto >> $dir/logs/gwc-seed.log 2>&1 # sextante-gwc-seed"
-    ) | crontab -
+    } | crontab -
     row 'Cron' 'instalado' "$C_GREEN" 'seed de GWC 04:30'
     crontab -l | grep 'sextante-gwc-seed' | while IFS= read -r line; do
         printf '         %s\n' "$line"
-    done
+    done || true
 }
 
 cron_remove() {
-    (crontab -l 2>/dev/null | grep -v 'sextante-gwc-seed') | crontab -
+    { crontab -l 2>/dev/null | grep -v 'sextante-gwc-seed' || true; } | crontab -
     row 'Cron' 'desinstalado' "$C_GREEN"
 }
 

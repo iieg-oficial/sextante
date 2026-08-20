@@ -88,6 +88,7 @@ general:cabeceras_municipales
 general:caminos_2012
 general:carretera_2012
 general:cuerpos_de_agua_50k
+general:curvas_de_nivel
 general:curvas_de_nivel_render
 general:limite_iieg
 general:limite_inegi

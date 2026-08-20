@@ -7,7 +7,7 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
-## [2.6.2] - 2026-08-18
+## [2.7.3] - 2026-08-18
 
 ### Corregido: `gwc_cache/` no estaba ignorado por git
 
@@ -16,7 +16,7 @@ Al sacar el blobstore del `data_dir` (2.5.0), el caché quedó en la raíz del r
 metido al repo. En este nodo son 156 KB, pero en el espejo son **1.5 millones de archivos**, y
 además sus permisos hacen que `git status` avise de directorios que no puede leer.
 
-## [2.6.1] - 2026-08-18
+## [2.7.2] - 2026-08-18
 
 ### Corregido: el hexbin va en su propio workspace, no en `general`
 
@@ -27,7 +27,7 @@ por delante y GeoServer respondia `Schema 'hexbin_agregado' does not exist`.
 La capa pasa a `mapalab:hexbin_agregado`, en un workspace propio que el script crea si falta y que
 ningun reapuntado toca.
 
-## [2.6.0] - 2026-08-18
+## [2.7.1] - 2026-08-18
 
 ### Agregado: `make init-hexbin-layer`, publica la capa del hexbin H3
 
@@ -41,6 +41,101 @@ las mismas `POSTGIS_*` del `.env` que el resto de datastores, asi que no hay cre
 
 Sin esto, el visor no encuentra los conteos y cae al calculo en el navegador, que sigue funcionando
 pero con su tope de 20 000 elementos.
+## [2.7.0] - 2026-08-07
+
+### Cambiado: la ruta del blobstore en el host se elige por nodo
+
+El volumen del blobstore tenia el lado del host fijo en `./gwc_cache`, relativo al repo. Los nodos
+del ecosistema corren sobre infraestructuras distintas —local, GCP, Proxmox y administracion— y no
+todos quieren el millon y medio de tiles en el mismo disco que el codigo.
+
+El lado del host pasa a `GWC_CACHE_HOST_DIR`, nueva en el `.env`. Son dos rutas distintas y se
+confunden con facilidad:
+
+| Variable | Donde | Varia por nodo |
+|---|---|---|
+| `GEOWEBCACHE_CACHE_DIR` | dentro del contenedor | no — es la misma imagen en todos |
+| `GWC_CACHE_HOST_DIR` | en el host | si |
+
+Una ruta relativa **tiene que llevar `./`**: sin la barra, compose la interpreta como volumen
+nombrado y aborta con `refers to undefined volume gwc_cache`, un error que no menciona el `.env`.
+
+**Al aplicarlo, las dos claves van al `.env` antes de bajar el contenedor.** El compose falla al
+interpolar, asi que un `make deploy` sin ellas no llega ni al `down`: reporta `fail`, el contenedor
+viejo sigue arriba y el nodo se queda en la version anterior.
+
+### Corregido: el deploy terminaba en `Error 1` sin instalar el cron del seed
+
+En un nodo con el crontab **vacio**, `cron_install` dejaba el cron sin instalar y hacia fallar el
+deploy entero. Las recetas corren con `-eu -o pipefail`, y ahi `crontab -l | grep -v` devuelve 1
+cuando no hay ninguna linea que conservar: el subshell muere antes del `echo` de la linea nueva y
+el `crontab -` de la derecha recibe la entrada vacia.
+
+El sintoma no apunta a nada: **todos los pasos salen `ok`** y el `make` termina en `Error 1` sin
+una linea de error propia, porque quien falla es el ultimo paso, que no imprime fila. Los filtros
+cuyo «no hay coincidencias» es legitimo se cierran con `|| true`.
+
+Mismo bug y mismo arreglo en **mariachi** (respaldo de BD y refresh de stats) y **acervo**
+(respaldo mensual). En un nodo que ya paso por esto, `crontab -l` vacio es la senal.
+
+## [2.6.1] - 2026-08-07
+
+### Corregido: `general:curvas_de_nivel` no cacheaba y saturaba la CPU del nodo
+
+La capa quedo fuera de `gwc-filters.txt` cuando se publico `curvas_de_nivel_render`, su version
+optimizada. Es correcto mientras todos los nodos corran un frontend que ya pida la nueva; en
+cuanto uno se queda atras, **sigue pidiendo la vieja, que sin filtro de `ENV` no cachea nunca**.
+
+Sin ese filtro GWC no procesa la peticion: el visor manda `ENV=geom:geom_iieg` en cada GetMap y
+GWC la pasa directo a WMS. No es un `MISS` que se vuelve `HIT` a la segunda — es permanente.
+
+Detectado en GCP el 2026-08-07, con el backend de mapalab 8 dias atras: 390 peticiones por hora
+renderizando en vivo a ~3 s cada una, con el `load average` en **19.59** sobre 2 cores. No aparece
+en ningun log como error; se manifiesta como saturacion de CPU intermitente.
+
+| | Antes | Despues |
+|---|---|---|
+| 2a peticion, mismo tile | 2.64 s · `MISS` | **0.019 s · `HIT`** |
+| 3a peticion, mismo tile | 2.99 s · `MISS` | **0.024 s · `HIT`** |
+
+La capa sustituida se queda declarada mientras algun nodo pueda pedirla. Para encontrar otras
+huerfanas, el barrido esta en `runbook/capas-y-tiles.md` del repo de contexto.
+
+## [2.6.0] - 2026-08-07
+
+### Corregido: el arranque pasaba de 1 min a casi 8 con el cache sembrado
+
+Tras sembrar GWC, el blobstore quedo con **1 574 496 archivos** dentro de `geoserver_data/`. El
+entrypoint de kartoza recorre el `data_dir` entero en cada arranque para verificar dueños
+(`geo_data_file_perms`), asi que **cada `make deploy` o `restart` sumaba minutos en los que el
+contenedor esta `unhealthy` y GeoServer no responde**. No es evidente: el sintoma es «esta arriba
+pero no contesta», sin relacion aparente con el cache.
+
+El blobstore sale del `data_dir` a `gwc_cache/`, via `GEOWEBCACHE_CACHE_DIR` (nueva en el `.env`).
+Medido en el espejo, mismo nodo y mismos 7.5 GB de tiles:
+
+| Blobstore | Arranque hasta `healthy` |
+|---|---|
+| Dentro de `geoserver_data/` | **7 min 44 s** |
+| En `gwc_cache/` | **1 min 29 s** |
+
+El entrypoint tambien hace `chown` sobre `GEOWEBCACHE_CACHE_DIR`, asi que la mejora no viene de
+que deje de recorrerlo; viene de sacarlo del arbol que se recorre para todo lo demas. Se midio dos
+veces (1 min 29 s y 1 min 38 s) para descartar que fuera cache de inodos.
+
+**Al aplicarlo en un nodo existente, mover el cache con `mv`** —mismo filesystem, tarda menos de un
+segundo y **preserva los dueños**—:
+
+```bash
+docker compose -p sextante -f compose.yaml down
+sudo mkdir -p gwc_cache && sudo mv geoserver_data/gwc/* gwc_cache/
+make up
+```
+
+**No hacer `chown` despues del `mv`.** El usuario dentro del contenedor es
+`geoserveruser:geoserverusers`, **uid 2000**, no el 1000 del host. Un `chown -R 1000:1000` marca el
+millon y medio de archivos como incorrectos y el entrypoint los corrige uno por uno: costo medido,
+mas de 30 minutos, y si se reinicia a la mitad **vuelve a empezar**.
 
 ## [2.5.0] - 2026-08-06
 

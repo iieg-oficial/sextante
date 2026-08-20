@@ -8,3 +8,4 @@ secrets/*
 !secrets/.gitkeep
 !secrets/*.example
 compose.local.yaml
+gwc_cache/
