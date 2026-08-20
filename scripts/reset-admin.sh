@@ -10,7 +10,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-CONTAINER="geoserver"
+CONTAINER="${CONTAINER:-sextante}"
 
 echo "Reseteando credenciales admin en GeoServer..."
 docker exec "$CONTAINER" bash -c '
