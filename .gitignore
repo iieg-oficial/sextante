@@ -8,3 +8,7 @@ secrets/*
 !secrets/*.example
 compose.local.yaml
 gwc_cache/
+
+# Salida de runtime del gwc-seed y demas
+logs/
+*.log
