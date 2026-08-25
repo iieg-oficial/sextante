@@ -7,6 +7,27 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.8.0] - 2026-08-25
+
+### Corregido: Tomcat rechazaba con 400 los CQL grandes del visor
+
+El conector HTTP no declaraba `maxHttpHeaderSize`, asi que usaba el default de Tomcat —**8 192
+bytes**— y cualquier `GetMap` con una URI mas larga moria con `400` antes de llegar a GeoServer. Se
+sube a **65 536**.
+
+El caso: la capa «Establecimientos de salud» agrupa 33 subcapas sobre `salud.unidades_salud`, cada
+una con su filtro de institucion y nivel, mas el rango de fechas. Con la vista por municipio activa
+la URI llegaba a **10 867 bytes**. En el visor la capa aparecia vacia y en consola solo se veia
+`Failed to load resource: 400`.
+
+**Eran dos topes en serie, no uno.** gateway-hub 1.49.0 subio antes `large_client_header_buffers`,
+que estaba en el default de nginx de 4 x 8 KB; con eso la peticion ya cruzaba el proxy pero seguia
+muriendo aqui. Comprobado con un CQL de 10 652 caracteres: **200 directo a Tomcat y 200 por el
+gateway**, contra 400 en ambos antes del cambio.
+
+**El CQL crece con el catalogo**: cada subcapa nueva del grupo alarga la URI, asi que los defaults
+de 8 KB no dan para este visor.
+
 ## [2.7.3] - 2026-08-18
 
 ### Corregido: `gwc_cache/` no estaba ignorado por git

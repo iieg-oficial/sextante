@@ -12,7 +12,7 @@
 
   <Service name="Catalina">
 
-    <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="8443" maxParameterCount="1000" scheme="${HTTP_SCHEME}" secure="${TOMCAT_SECURE}" proxyName="${PROXY_HOST}" proxyPort="${PROXY_PORT}"/>
+    <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="8443" maxParameterCount="1000" maxHttpHeaderSize="65536" scheme="${HTTP_SCHEME}" secure="${TOMCAT_SECURE}" proxyName="${PROXY_HOST}" proxyPort="${PROXY_PORT}"/>
 
     <Engine name="Catalina" defaultHost="localhost">
 
