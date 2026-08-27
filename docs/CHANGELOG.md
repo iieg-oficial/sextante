@@ -7,6 +7,23 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.9.0] - 2026-08-27
+
+### Agregado: el `/ontoy` declara a que nodo pertenece
+
+huachicol 2.9.0 amplio el contrato para que el monitor agrupe por servidor y no solo por servicio.
+`ONTOY_NODE` dice donde corre este repo —**S3**— y `ONTOY_NODE_REPORTER` decide quien habla del
+host. Es el reportero de su nodo, asi que su `/ontoy` agrega carga, RAM, swap y uptime, leidos de `/proc` sin exporters ni puertos nuevos.
+
+`ONTOY_PEER_CHECKS` queda disponible para las aristas entre nodos; vacia por omision.
+
+**Las dos primeras son obligatorias**: el compose falla si faltan, asi que hay que agregarlas al
+`.env` de cada entorno antes de desplegar.
+
+De paso, `ontoy_server.py` se sincroniza con el de huachicol, que es la fuente y llevaba tiempo
+divergiendo entre copias. Los checks de maquina quedan marcados como informativos y ya no tumban el
+estado del servicio.
+
 ## [2.8.0] - 2026-08-25
 
 ### Corregido: Tomcat rechazaba con 400 los CQL grandes del visor

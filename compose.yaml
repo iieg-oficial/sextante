@@ -85,6 +85,9 @@ services:
       - "${VERSION_API_BIND_ADDR:?}:${VERSION_API_PORT:?}:8088"
     environment:
       ONTOY_SERVICE: sextante
+      ONTOY_NODE: ${ONTOY_NODE:?}
+      ONTOY_NODE_REPORTER: ${ONTOY_NODE_REPORTER:?}
+      ONTOY_PEER_CHECKS: ${ONTOY_PEER_CHECKS}
       ONTOY_COMPOSE_PROJECT: sextante
       ONTOY_DISK_PATH: ${ONTOY_DISK_PATH:?}
     volumes:
