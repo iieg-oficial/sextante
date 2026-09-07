@@ -7,6 +7,33 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.9.1] - 2026-09-07
+
+### Corregido: el login se bloqueaba desde cualquier nombre que no fuera el del `.env`
+
+`GEOSERVER_PROXY_BASE_URL` traia un host fijo, y GeoServer arma con el el `action` del formulario de
+login. Entrando por otro nombre el POST salia cross-origin y el `form-action 'self'` del gateway lo
+bloqueaba: el boton no hacia nada. Con los nombres internos del AD en uso, esto dejo la consola
+inaccesible por todos menos uno.
+
+Ahora la URL base sigue las cabeceras del gateway:
+
+```
+GEOSERVER_PROXY_BASE_URL=$${X-Forwarded-Proto}://$${X-Forwarded-Host}/sextante
+```
+
+**Los `$$` son escape de compose, no un error**: GeoServer tiene que recibir `${...}` literal para
+sustituirlo el mismo. Requiere `useHeadersProxyURL=true` en `config/global.xml.template`, que ya
+venia activado.
+
+Ampliar `form-action` no habria servido: la sesion se crearia en el host del `action` mientras se
+navega otro, y el login entra en bucle.
+
+`GEOSERVER_CSRF_WHITELIST` es un segundo candado independiente —GeoServer compara el `Referer`—, asi
+que cada nombre nuevo por el que se vaya a entrar tiene que estar tambien ahi.
+
+Diagnostico y verificacion en `runbook/sextante.md`.
+
 ## [2.9.0] - 2026-08-27
 
 ### Agregado: el `/ontoy` declara a que nodo pertenece
