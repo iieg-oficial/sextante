@@ -7,6 +7,17 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.7.4] - 2026-09-10
+
+### Corregido: `make deploy` y `make restore` cortaban antes de que GeoServer respondiera
+
+`wait_geoserver` esperaba 300 s (`GEOSERVER_WAIT_MAX=60`) y con el `data_dir` de produccion
+GeoServer tarda cerca de nueve minutos en responder: el `fix_permissions` del entrypoint recorre
+los directorios de la imagen en cada recreacion y despues carga el catalogo. El deploy terminaba en
+`Error 1` sin correr `init_all` (datastores, cultivos, curvas, gridsets, URLChecks, filtros de GWC,
+seed y cron) mientras el contenedor seguia arrancando y quedaba sano. Pasa a 180 intentos (15 min);
+el bucle sale en cuanto responde, asi que esperar de mas no cuesta nada.
+
 ## [2.7.0] - 2026-08-07
 
 ### Cambiado: la ruta del blobstore en el host se elige por nodo
