@@ -1,5 +1,5 @@
 BACKUP_DIR='backups'
-GEOSERVER_WAIT_MAX=60
+GEOSERVER_WAIT_MAX=180
 
 wait_geoserver() {
     local attempts=0
