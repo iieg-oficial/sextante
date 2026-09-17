@@ -71,6 +71,29 @@ gateway**, contra 400 en ambos antes del cambio.
 
 **El CQL crece con el catalogo**: cada subcapa nueva del grupo alarga la URI, asi que los defaults
 de 8 KB no dan para este visor.
+## [2.7.5] - 2026-09-17
+
+### Corregido: `make restore` dejaba al admin sin contraseña
+
+`reset-admin.sh` cargaba `/scripts/env-data.sh` y `/scripts/functions.sh`, rutas que
+`kartoza/geoserver:3.0.0` movio a `/scripts/lib/` (`env-data.sh`, `utils.sh`, `geoserver.sh`).
+Sin esas libs `make_hash` no existia, `PWD_HASH` quedaba vacio y el `sed` escribia
+`password=""` en `users.xml`: GeoServer respondia 500 a cualquier login y la interfaz web
+quedaba inaccesible. El bloque remoto corria sin `set -e`, asi que el script seguia adelante e
+imprimia "Admin actualizado a: <usuario>" sobre un archivo ya roto.
+
+Ahora las libs se cargan desde `/scripts/lib/` cuando existe —la ruta vieja queda de respaldo
+para entornos que sigan en la imagen 2.x—, el bloque remoto lleva `set -e` y un hash vacio
+aborta antes de tocar `users.xml`.
+
+La espera posterior al reinicio apuntaba a `http://localhost:8080/geoserver/web/`, con el
+context root escrito a mano: con `GEOSERVER_CONTEXT_ROOT=sextante` esa URL da 404 siempre y el
+paso terminaba en `Error 1` a los 120 s aunque GeoServer hubiera arrancado en 14 s. Pasa a
+`${GEOSERVER_CONTEXT_ROOT:-sextante}`, igual que `wait_geoserver`.
+
+Ese mismo bucle conservaba el limite de 24 intentos que `wait_geoserver` dejo atras en 2.7.4.
+Como el reinicio ocurre con el `data_dir` ya restaurado, los mismos nueve minutos de arranque
+volvian a agotarlo. Pasa a `${GEOSERVER_WAIT_MAX:-180}`.
 
 ## [2.7.4] - 2026-09-10
 
