@@ -14,8 +14,16 @@ CONTAINER="${CONTAINER:-sextante}"
 
 echo "Reseteando credenciales admin en GeoServer..."
 docker exec "$CONTAINER" bash -c '
-  source /scripts/env-data.sh
-  source /scripts/functions.sh
+  set -e
+
+  if [ -d /scripts/lib ]; then
+    source /scripts/lib/env-data.sh
+    source /scripts/lib/utils.sh
+    source /scripts/lib/geoserver.sh
+  else
+    source /scripts/env-data.sh
+    source /scripts/functions.sh
+  fi
 
   GEOSERVER_INSTALL_DIR="$(detect_install_dir)"
   USERS_XML=${GEOSERVER_DATA_DIR}/security/usergroup/default/users.xml
@@ -23,6 +31,11 @@ docker exec "$CONTAINER" bash -c '
   CLASSPATH=${GEOSERVER_INSTALL_DIR}/webapps/${GEOSERVER_CONTEXT_ROOT}/WEB-INF/lib/
 
   export PWD_HASH=$(make_hash "$GEOSERVER_ADMIN_PASSWORD" "$CLASSPATH" "$HASHING_ALGORITHM")
+  if [ "${#PWD_HASH}" -le 12 ]; then
+    echo "✗ El hash salio vacio; no se toca users.xml." >&2
+    exit 1
+  fi
+
   ESCAPED_USER=$(printf "%s\n" "$GEOSERVER_ADMIN_USER" | sed "s/[&/\\\\]/\\\\&/g")
   ESCAPED_HASH=$(printf "%s\n" "$PWD_HASH" | sed "s/[&/\\\\]/\\\\&/g")
 
@@ -60,8 +73,8 @@ echo "Reiniciando GeoServer para aplicar cambios..."
 docker restart "$CONTAINER"
 
 echo "Esperando que GeoServer esté listo..."
-attempts=0; max=24
-until docker exec "$CONTAINER" curl -sf http://localhost:8080/geoserver/web/ > /dev/null 2>&1; do
+attempts=0; max="${GEOSERVER_WAIT_MAX:-180}"
+until docker exec "$CONTAINER" curl -sf "http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}/web/" > /dev/null 2>&1; do
   attempts=$((attempts + 1))
   if [ "$attempts" -ge "$max" ]; then
     echo ""
