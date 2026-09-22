@@ -31,6 +31,7 @@ init_all() {
     run_step 'Datastores' bash scripts/init-datastores.sh
     run_step 'Cultivos' bash scripts/init-cultivos-layer.sh
     run_step 'Curvas render' bash scripts/init-curvas-render-layer.sh
+    run_step 'Terreno RGB' bash scripts/init-terreno-rgb-layer.sh
     run_step 'Gridsets' bash scripts/init-gridsets.sh
     run_step 'URLChecks' bash scripts/setup-urlchecks.sh
     run_step 'GWC filters' bash scripts/init-gwc-filters.sh

@@ -7,6 +7,28 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.10.0] - 2026-09-21
+
+### Agregado: el DEM codificado en RGB para el terreno 3D de mapalab
+
+`scripts/init-terreno-rgb-layer.sh` (`make init-terreno-rgb-layer`, y corre en cada `make up` y
+`make deploy`) publica `raster:elevacion_terreno_rgb`: la misma cobertura que
+`raster:elevacion_jalisco_intervalo_vertical_10m`, con el estilo `raster:terreno_rgb`, que guarda la
+altura en los canales del PNG (`altura = R*256 + G`, en metros). mapalab 1.173.0 la lee como
+`raster-dem` de MapLibre con `encoding: 'custom'`.
+
+- El SLD es una rampa `extended="true"` generada por el script; sin `extended`, GeoServer la acota a
+  256 colores y la codificación se rompe.
+- Interpolación al vecino más cercano: un remuestreo bilineal mezclaría los canales y daría
+  saltos de hasta 128 m en los cortes.
+- Tile layer de GWC solo en `EPSG:900913` y `image/png`, con `expireClients` de una semana. Se
+  siembra de z6 a z12 desde `config/gwc-seed-auto.txt` (≈55 KB por tile).
+- Idempotente; `--force` rescribe el estilo. Falla explícitamente si no existe el coveragestore
+  `raster:elevacion`.
+
+Verificado contra el DEM original con `gdallocationinfo`: 3 920 m en el Nevado de Colima y 1 550 m
+en Guadalajara, a z9 y z12, decodificados igual al metro.
+
 ## [2.9.1] - 2026-09-07
 
 ### Corregido: el login se bloqueaba desde cualquier nombre que no fuera el del `.env`
