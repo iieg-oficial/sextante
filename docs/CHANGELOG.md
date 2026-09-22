@@ -7,6 +7,24 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.11.0] - 2026-09-22
+
+### Corregido: el terreno 3D colgaba una cortina de picos en el borde de Jalisco
+
+Fuera del estado el DEM no tiene datos y el tile sale transparente; MapLibre lee un pixel
+transparente como **0 metros**, así que en el borde —dentado a 15 m— el terreno caia al nivel del
+mar pixel de por medio y quedaba un fleco de picos colgando.
+
+Ahora la capa se publica sobre `elevacion_jalisco_relleno.tif`, que genera el propio script con
+`gdal_fillnodata.py` (`-md 2500`, unos 37 km) si todavia no existe: el terreno continua mas alla del
+limite y el corte se va al borde del bbox del DEM. El archivo se queda en el data dir, no se
+versiona, y tarda varios minutos la primera vez.
+
+- Coveragestore propio `raster:terreno_rgb`; si la capa seguia colgada del store `elevacion`, el
+  script la retira antes de republicar.
+- Al cambiar de origen se purga el cache de GWC de la capa (`masstruncate`), porque los tiles viejos
+  traen los huecos.
+
 ## [2.10.0] - 2026-09-21
 
 ### Agregado: el DEM codificado en RGB para el terreno 3D de mapalab

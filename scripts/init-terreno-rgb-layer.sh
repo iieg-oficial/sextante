@@ -15,13 +15,20 @@ GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 
 WORKSPACE=raster
-STORE=elevacion
-NATIVE=elevacion_jalisco_intervalo_vertical_10m
+STORE=terreno_rgb
+ORIGEN_STORE=elevacion
+NATIVE=elevacion_jalisco_relleno
+ORIGEN_TIF=workspaces/raster/terreno/elevacion_jalisco_intervalo_vertical_10m.tif
+RELLENO_TIF=workspaces/raster/terreno/elevacion_jalisco_relleno.tif
+FILL_MAX_DISTANCE=2500
 LAYER=elevacion_terreno_rgb
 STYLE=terreno_rgb
 MAX_ELEVATION=4352
+CONTENEDOR=${GEOSERVER_CONTAINER_NAME:-sextante}
+DATA_DIR=/opt/geoserver/data_dir
 
 FORCE="${1:-}"
+PURGAR=0
 REST="$GEOSERVER_URL/rest"
 
 http_code() {
@@ -81,10 +88,35 @@ EOXML
 
 echo "Publicando $WORKSPACE:$LAYER ..."
 
-store=$(http_code "$REST/workspaces/$WORKSPACE/coveragestores/$STORE.json")
-if [ "$store" != "200" ]; then
-  echo "✗ No existe el coveragestore $WORKSPACE:$STORE (HTTP $store). Sin el DEM no hay terreno." >&2
+origen=$(http_code "$REST/workspaces/$WORKSPACE/coveragestores/$ORIGEN_STORE.json")
+if [ "$origen" != "200" ]; then
+  echo "✗ No existe el coveragestore $WORKSPACE:$ORIGEN_STORE (HTTP $origen). Sin el DEM no hay terreno." >&2
   exit 1
+fi
+
+if ! docker exec "$CONTENEDOR" test -f "$DATA_DIR/$RELLENO_TIF"; then
+  echo "  generando el DEM sin huecos (tarda unos minutos)..."
+  if ! docker exec "$CONTENEDOR" gdal_fillnodata.py -md "$FILL_MAX_DISTANCE" -of GTiff \
+      -co TILED=YES -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER \
+      "$DATA_DIR/$ORIGEN_TIF" "$DATA_DIR/$RELLENO_TIF" >/dev/null 2>&1; then
+    echo "✗ gdal_fillnodata.py fallo dentro de $CONTENEDOR" >&2
+    exit 1
+  fi
+  docker exec "$CONTENEDOR" chown geoserveruser:geoserverusers "$DATA_DIR/$RELLENO_TIF" >/dev/null 2>&1 || true
+fi
+
+tienda=$(http_code "$REST/workspaces/$WORKSPACE/coveragestores/$STORE.json")
+if [ "$tienda" != "200" ]; then
+  payload="{\"coverageStore\":{\"name\":\"$STORE\",\"type\":\"GeoTIFF\",\"enabled\":true,\"workspace\":{\"name\":\"$WORKSPACE\"},\"url\":\"file:$RELLENO_TIF\"}}"
+  code=$(http_code -XPOST -H "Content-Type: application/json" -d "$payload" "$REST/workspaces/$WORKSPACE/coveragestores")
+  echo "  coveragestore creado (HTTP $code)"
+fi
+
+vieja=$(http_code "$REST/workspaces/$WORKSPACE/coveragestores/$ORIGEN_STORE/coverages/$LAYER.json")
+if [ "$vieja" = "200" ]; then
+  code=$(http_code -XDELETE "$REST/workspaces/$WORKSPACE/coveragestores/$ORIGEN_STORE/coverages/$LAYER?recurse=true")
+  echo "  capa anterior sobre el DEM con huecos retirada (HTTP $code)"
+  PURGAR=1
 fi
 
 sld_file=$(mktemp)
@@ -121,5 +153,12 @@ echo "  estilo por defecto e interpolacion al vecino mas cercano (HTTP $code)"
 code=$(http_code -XPUT -H "Content-Type: text/xml" -d "$(gwc_layer_xml)" \
   "$GEOSERVER_URL/gwc/rest/layers/$WORKSPACE:$LAYER.xml")
 echo "  tile layer de GWC (HTTP $code)"
+
+if [ "$PURGAR" = "1" ] || [ "$FORCE" = "--force" ]; then
+  code=$(http_code -XPOST -H "Content-Type: text/xml" \
+    -d "<truncateLayer><layerName>$WORKSPACE:$LAYER</layerName></truncateLayer>" \
+    "$GEOSERVER_URL/gwc/rest/masstruncate")
+  echo "  cache de GWC purgado (HTTP $code)"
+fi
 
 echo "✓ $WORKSPACE:$LAYER listo."
