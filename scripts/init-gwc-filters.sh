@@ -10,7 +10,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
+GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
 AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
 ENV_VALUES="geom:geom_iieg,geom:geom_inegi"
 ENV_DEFAULT="geom:geom_iieg"

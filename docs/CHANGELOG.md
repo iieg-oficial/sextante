@@ -7,6 +7,15 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.12.1] - 2026-09-25
+
+### Corregido: los scripts de init apuntaban a `localhost:8080`
+
+Desde 2.12.0 Tomcat se publica en `GEOSERVER_BIND_ADDR:GEOSERVER_PORT`, y los nueve scripts de
+`scripts/` (datastores, capas, gridsets, filtros de GWC, siembra y urlchecks) seguían llamando a
+`http://localhost:8080`: con otra IP de bind u otro puerto, el `make deploy` fallaba en el primer
+paso de init. Ahora arman la URL con esas dos variables, que ya leen del `.env`.
+
 ## [2.12.0] - 2026-09-24
 
 Reparaciones de la auditoria de seguridad del 2026-09-24 (`context-ame-esta`,
