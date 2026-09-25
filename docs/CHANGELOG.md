@@ -7,6 +7,27 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.13.0] - 2026-09-25
+
+### Cambiado: el terreno 3D lleva el relieve real de los estados vecinos
+
+`elevacion_terreno_rgb` dejaba de tener dato a unos 37 km del límite: `gdal_fillnodata` inventaba
+ese margen estirando el borde en línea recta, y en el 3D de mapalab se veían estrías hasta un canto
+redondeado donde el terreno caía a 0 m. `init-terreno-rgb-layer.sh` arma ahora el DEM con
+Copernicus GLO-90 (libre, AWS Open Data) 200 km alrededor del estado, a 30 m, con el DEM de Jalisco
+encima; si no puede bajarlo, vuelve al relleno de antes. Al regenerarlo relee el store y recalcula la
+extensión, que antes quedaba fija en la del archivo viejo.
+
+### Agregado: `raster:elevacion_jalisco_rgb` para el sombreado
+
+El mismo DEM de Jalisco sin rellenar, publicado sobre el store `elevacion` con el estilo
+`terreno_rgb`. mapalab lo usa para el sombreado del 3D, así que fuera del estado no se dibuja
+relieve y el mapa queda limpio.
+
+**Al desplegar:** borrar `workspaces/raster/terreno/elevacion_jalisco_relleno.tif` del data dir y
+correr `make init-terreno-rgb-layer` (baja unos 80 tiles y tarda unos minutos). Va antes que mapalab
+1.213.5. El código de esta versión salió en el commit de 2.12.1.
+
 ## [2.12.1] - 2026-09-25
 
 ### Corregido: los scripts de init apuntaban a `localhost:8080`
