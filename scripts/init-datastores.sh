@@ -95,8 +95,8 @@ datastore_request() {
     http_code=$(curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
       -X "$method" \
       -H "Content-Type: application/json" \
-      -d "$payload" \
-      "$url")
+      --data-binary @- \
+      "$url" <<<"$payload")
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
       echo "$http_code"
       return 0

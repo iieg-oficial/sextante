@@ -18,13 +18,13 @@ wait_geoserver() {
 }
 
 set_charset() {
-    local user pass
-    user=$(docker exec sextante env | grep '^GEOSERVER_ADMIN_USER=' | cut -d= -f2)
-    pass=$(docker exec sextante env | grep '^GEOSERVER_ADMIN_PASSWORD=' | cut -d= -f2)
-    docker exec sextante curl -sf -u "$user:$pass" -X PUT \
-        -H 'Content-Type: application/json' \
-        -d '{"global":{"settings":{"charset":"UTF-8"}}}' \
-        http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}/rest/settings >/dev/null 2>&1 || true
+    docker exec -i sextante sh -c '
+        auth=$(printf "%s:%s" "$GEOSERVER_ADMIN_USER" "$GEOSERVER_ADMIN_PASSWORD" | base64 -w0)
+        printf "header = \"Authorization: Basic %s\"\n" "$auth" | curl -sf -K - -X PUT \
+            -H "Content-Type: application/json" \
+            -d "{\"global\":{\"settings\":{\"charset\":\"UTF-8\"}}}" \
+            "http://localhost:8080/$GEOSERVER_CONTEXT_ROOT/rest/settings"
+    ' >/dev/null 2>&1 || true
 }
 
 init_all() {

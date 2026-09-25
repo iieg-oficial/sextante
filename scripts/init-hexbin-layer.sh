@@ -73,12 +73,12 @@ fi
 
 existe=$(http_code "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores/$DATASTORE.json")
 if [ "$existe" = "200" ]; then
-  code=$(http_code -XPUT -H "Content-Type: application/json" -d "$(datastore_payload)" \
-    "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores/$DATASTORE")
+  code=$(http_code -XPUT -H "Content-Type: application/json" --data-binary @- \
+    "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores/$DATASTORE" < <(datastore_payload))
   echo "  datastore actualizado (HTTP $code)"
 else
-  code=$(http_code -XPOST -H "Content-Type: application/json" -d "$(datastore_payload)" \
-    "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores")
+  code=$(http_code -XPOST -H "Content-Type: application/json" --data-binary @- \
+    "$GEOSERVER_URL/rest/workspaces/$WORKSPACE/datastores" < <(datastore_payload))
   echo "  datastore creado (HTTP $code)"
 fi
 

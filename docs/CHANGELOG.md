@@ -7,6 +7,38 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.12.0] - 2026-09-24
+
+Reparaciones de la auditoria de seguridad del 2026-09-24 (`context-ame-esta`,
+`historial/2026-09-24-auditoria-seguridad.md`). La consola, la REST y el catch-all de `/sextante/`
+se cerraron del lado del gateway (gateway-hub 1.55.0).
+
+### Corregido
+
+- **Se elimina `proxy_server.py`.** Era un servidor de desarrollo que servia la raiz del repo
+  —`.env` incluido— en `0.0.0.0`. Nada lo invocaba.
+- **La contrasena de PostGIS ya no viaja en la linea de comandos de `curl`.** `init-datastores.sh` e
+  `init-hexbin-layer.sh` mandan el cuerpo del datastore por stdin (`--data-binary @-`), asi que no
+  aparece en `ps` mientras corre el script.
+- **`set_charset` ya no saca la credencial del admin a la linea de comandos del host.** Antes la leia
+  con `docker exec env` y la pasaba a `curl -u`; ahora el `curl` corre dentro del contenedor y recibe
+  la cabecera `Authorization` por stdin con `-K -`.
+- **Respaldos solo legibles por su dueno.** `make backup` corre con `umask 077` y deja `backups/` en
+  `700`: el tar lleva los `datastore.xml` con la contrasena de PostGIS.
+
+### Cambiado
+
+- `.env.example`: `POSTGIS_SSLMODE=require` (dataengine ya tiene `ssl = on` y `hostssl` en
+  `pg_hba`) y `ENABLE_JSONP=false` (ningun repo pide JSONP). **El `sslmode` queda guardado en el XML
+  de cada datastore**: al cambiarlo en el `.env` hay que correr `make init-datastores`.
+- `.env.example`: la arista de `ONTOY_PEER_CHECKS` a S4 pasa de `:6432` a `:5432`, porque pgbouncer ya
+  no se publica fuera de la VM.
+- El sidecar `version-api` ya no monta `docker.sock`; consulta contenedores por
+  `DOCKER_HOST=tcp://docker-socket-proxy:2375` (`tecnativa/docker-socket-proxy:v0.5.0`,
+  `CONTAINERS=1` y lo demas en 0, red interna `sextante-docker-api`) y corre como uid 65534.
+- `ontoy_server.py` sincronizado con huachicol 2.18.0: 500 con texto fijo, tope de 8 hilos, timeout
+  de 5 s, cache de 2 s y CPU sin sleep por peticion; desaparece `ONTOY_CPU_SAMPLE_SECONDS`.
+
 ## [2.11.0] - 2026-09-22
 
 ### Corregido: el terreno 3D colgaba una cortina de picos en el borde de Jalisco

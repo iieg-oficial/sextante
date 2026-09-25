@@ -77,6 +77,22 @@ services:
       - iieg-network
     logging: *logging
 
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    container_name: sextante-docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      EVENTS: 0
+      PING: 0
+      VERSION: 0
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
+    logging: *logging
+
   version-api:
     build: ./version-api
     container_name: sextante-version-api
@@ -90,10 +106,12 @@ services:
       ONTOY_PEER_CHECKS: ${ONTOY_PEER_CHECKS}
       ONTOY_COMPOSE_PROJECT: sextante
       ONTOY_DISK_PATH: ${ONTOY_DISK_PATH:?}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
     volumes:
       - ./VERSION:/app/VERSION:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/os-release:/host/etc/os-release:ro
+    depends_on:
+      - docker-socket-proxy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -101,6 +119,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/ontoy').read()"]
     networks:
       - iieg-network
+      - docker-api
     logging: *logging
 
 networks:
@@ -108,3 +127,6 @@ networks:
     driver: bridge
   iieg-network:
     external: true
+  docker-api:
+    name: sextante-docker-api
+    internal: true
