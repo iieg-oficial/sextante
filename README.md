@@ -32,6 +32,8 @@ abajo, y el resto funciona tal cual.
 
 ## Arranque
 
+Paso a paso completo, del host vacío a una capa publicada: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
+
 ```bash
 cp .env.example .env    # llenar los valores; no se versiona
 make up                 # desarrollo
