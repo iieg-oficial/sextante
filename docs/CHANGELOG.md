@@ -7,6 +7,10 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+### Corregido
+
+- El check `containers` de `/ontoy` ya no marca degradado un contenedor de un solo uso que terminó con código 0 (el `monitor-data-init` de huachicol), y el sidecar deja de contar su propia salud, que lo dejaba en `unhealthy` en cada arranque.
+
 ## [2.13.0] - 2026-09-25
 
 ### Cambiado: el terreno 3D lleva el relieve real de los estados vecinos
