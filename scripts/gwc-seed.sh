@@ -11,7 +11,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 SEED_FILE="${SEED_FILE:-$PROJECT_DIR/config/gwc-seed.txt}"
 FILTERS_FILE="${FILTERS_FILE:-$PROJECT_DIR/config/gwc-filters.txt}"
 GRIDSET="${GWC_SEED_GRIDSET:-EPSG:900913}"
@@ -67,7 +67,7 @@ USAGE
 
 wait_for_gwc() {
   local attempt=0 code
-  until code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/gwc/rest/layers") && [ "$code" = "200" ]; do
+  until code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" "$GEOSERVER_URL/gwc/rest/layers") && [ "$code" = "200" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge 24 ]; then
       echo "GWC REST no respondio 200 tras 120s (ultimo code=$code)." >&2
@@ -78,14 +78,14 @@ wait_for_gwc() {
 }
 
 show_status() {
-  curl -s --max-time 30 -u "$AUTH" "$GEOSERVER_URL/gwc/rest/seed.json" \
+  gs_curl -s --max-time 30 "$GEOSERVER_URL/gwc/rest/seed.json" \
     | python3 "$SCRIPT_DIR/lib/gwc_seed_status.py"
 }
 
 truncate_layer() {
   local layer="$1"
   local code
-  code=$(curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
+  code=$(gs_curl -s -o /dev/null --max-time 60 -w "%{http_code}" \
     -X POST -H "Content-Type: text/xml" \
     -d "<truncateLayer><layerName>${layer}</layerName></truncateLayer>" \
     "$GEOSERVER_URL/gwc/rest/masstruncate")
@@ -105,7 +105,7 @@ stop_all() {
   local n=0
   for layer in "${capas[@]}"; do
     local body
-    body=$(curl -s --max-time 30 -u "$AUTH" -X POST -d "kill_all=all" \
+    body=$(gs_curl -s --max-time 30 -X POST -d "kill_all=all" \
       "$GEOSERVER_URL/gwc/rest/seed/${layer}")
     local killed
     killed=$(printf '%s' "$body" | grep -o 'RUNNING\]' | wc -l)
@@ -175,7 +175,7 @@ declared_cqls() {
 
 post_seed() {
   local layer="$1" zmin="$2" zmax="$3" cql="${4:-}"
-  curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
+  gs_curl -s -o /dev/null --max-time 60 -w "%{http_code}" \
     -X POST -H "Content-Type: text/xml" \
     --data-binary "$(build_payload "$layer" "$zmin" "$zmax" "$cql")" \
     "$GEOSERVER_URL/gwc/rest/seed/${layer}.xml"
@@ -184,7 +184,7 @@ post_seed() {
 seed_layer() {
   local layer="$1" zmin="$2" zmax="$3"
   local current
-  current=$(curl -s --max-time 30 -u "$AUTH" "$GEOSERVER_URL/gwc/rest/layers/${layer}.xml")
+  current=$(gs_curl -s --max-time 30 "$GEOSERVER_URL/gwc/rest/layers/${layer}.xml")
   if ! printf '%s' "$current" | grep -q "<GeoServerLayer>"; then
     echo "  x $layer (no esta publicado en GWC)" >&2
     return 1

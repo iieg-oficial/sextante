@@ -17,7 +17,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 
 WORKSPACE="mapalab"
 DATASTORE="mapalab_hexbin"
@@ -56,7 +56,7 @@ EOJSON
 }
 
 http_code() {
-  curl -s -o /dev/null -w "%{http_code}" -u "$AUTH" "$@"
+  gs_curl -s -o /dev/null -w "%{http_code}" "$@"
 }
 
 echo "Publicando $WORKSPACE:$LAYER ..."

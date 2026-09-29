@@ -12,7 +12,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 
 GRIDSET_NAME="Jalisco_ITRF2008_13N"
 GRIDSET_SRS=6368
@@ -30,7 +30,7 @@ wait_for_geoserver() {
   local attempt=0
   echo "Esperando GeoServer (REST/GWC)..."
   local http_code
-  until http_code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/gwc/rest/gridsets") && [ "$http_code" = "200" ]; do
+  until http_code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" "$GEOSERVER_URL/gwc/rest/gridsets") && [ "$http_code" = "200" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_attempts" ]; then
       echo "GWC REST no respondió 200 después de $((max_attempts * 5)) segundos (último code=$http_code)." >&2
@@ -64,7 +64,7 @@ PYEOF
 
 wait_for_geoserver
 
-http_code=$(curl -s -o /dev/null --max-time 15 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/gwc/rest/gridsets/$GRIDSET_NAME.xml")
+http_code=$(gs_curl -s -o /dev/null --max-time 15 -w "%{http_code}" "$GEOSERVER_URL/gwc/rest/gridsets/$GRIDSET_NAME.xml")
 if [ "$http_code" = "200" ]; then
   if [ "$FORCE" != "--force" ]; then
     echo "Gridset '$GRIDSET_NAME' ya existe; skip (usa --force para reescribir)."
@@ -72,13 +72,13 @@ if [ "$http_code" = "200" ]; then
   fi
   # Actualizar en sitio un gridset en uso corrompe el extent en GWC; borrar y recrear limpio.
   echo "Gridset '$GRIDSET_NAME' existe; borrando para recrear limpio (--force)..."
-  curl -s -o /dev/null --max-time 30 -u "$AUTH" -X DELETE "$GEOSERVER_URL/gwc/rest/gridsets/$GRIDSET_NAME"
+  gs_curl -s -o /dev/null --max-time 30 -X DELETE "$GEOSERVER_URL/gwc/rest/gridsets/$GRIDSET_NAME"
 fi
 
 payload=$(build_gridset_xml)
 
 printf "Aplicando gridset '%s' (EPSG:%s, %s niveles)... " "$GRIDSET_NAME" "$GRIDSET_SRS" "$GRIDSET_LEVELS"
-http_code=$(curl -s -o /dev/null --max-time 30 -w "%{http_code}" -u "$AUTH" \
+http_code=$(gs_curl -s -o /dev/null --max-time 30 -w "%{http_code}" \
   -X PUT \
   -H "Content-Type: application/xml" \
   -d "$payload" \

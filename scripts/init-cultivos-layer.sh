@@ -12,7 +12,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 
 WORKSPACE=economia
 DATASTORE=economia
@@ -33,7 +33,7 @@ wait_for_geoserver() {
   local attempt=0
   local http_code
   echo "Esperando GeoServer (REST)..."
-  until http_code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/about/version.json") && [ "$http_code" = "200" ]; do
+  until http_code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" "$GEOSERVER_URL/rest/about/version.json") && [ "$http_code" = "200" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_attempts" ]; then
       echo "REST no respondió 200 después de $((max_attempts * 5)) segundos (último code=$http_code)." >&2
@@ -74,8 +74,8 @@ EOF
 
 wait_for_geoserver
 
-current=$(curl -s --max-time 15 -u "$AUTH" "$FT_URL.xml")
-http_code=$(curl -s -o /dev/null --max-time 15 -w "%{http_code}" -u "$AUTH" "$FT_URL.xml")
+current=$(gs_curl -s --max-time 15 "$FT_URL.xml")
+http_code=$(gs_curl -s -o /dev/null --max-time 15 -w "%{http_code}" "$FT_URL.xml")
 
 if [ "$http_code" = "404" ]; then
   echo "WARNING: la capa '$WORKSPACE:$LAYER' no está publicada todavía; se omite la reproyección nativa." >&2
@@ -94,7 +94,7 @@ if printf '%s' "$current" | grep -q "EPSG:${SRID}" && printf '%s' "$current" | g
 fi
 
 printf "Republicando '%s' nativa en EPSG:%s (vista SQL sobre %s)... " "$WORKSPACE:$LAYER" "$SRID" "$GEOM_COL"
-http_code=$(curl -s -o /tmp/init_cultivos_resp --max-time 30 -w "%{http_code}" -u "$AUTH" \
+http_code=$(gs_curl -s -o /tmp/init_cultivos_resp --max-time 30 -w "%{http_code}" \
   -X PUT \
   -H "Content-Type: text/xml" \
   -d "$(build_payload)" \

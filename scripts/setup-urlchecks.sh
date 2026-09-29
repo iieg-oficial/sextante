@@ -22,7 +22,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 
 URLCHECKS=(
   "acervo_mapalab|Acervo SeaweedFS interno (bucket mapalab)|^http://acervo-seaweedfs:8333/mapalab/.+$"
@@ -32,15 +32,15 @@ URLCHECKS=(
 ensure_urlcheck() {
   local name="$1" description="$2" regex="$3"
   local existing
-  existing=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" \
-    -u "$AUTH" "$GEOSERVER_URL/rest/urlchecks/$name")
+  existing=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" \
+    "$GEOSERVER_URL/rest/urlchecks/$name")
   [ "$existing" = "200" ] && return 0
   local payload
   payload=$(printf '{"regexUrlCheck":{"name":"%s","description":"%s","enabled":true,"regex":"%s"}}' \
     "$name" "$description" "$regex")
   local code
-  code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" \
-    -u "$AUTH" -H "Content-Type: application/json" -X POST \
+  code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" \
+    -H "Content-Type: application/json" -X POST \
     "$GEOSERVER_URL/rest/urlchecks" -d "$payload")
   case "$code" in
     201) echo "  + $name (creado)" ;;
