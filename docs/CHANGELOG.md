@@ -7,6 +7,10 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+### Cambiado
+
+- Los pasos que corrian tras cada `up` y `deploy` dejan de estar escritos en `init_all` y salen a un perfil: `config/post-up.<perfil>.txt`, activado por `POST_UP_PROFILE` en el `.env`. El nuestro es `post-up.iieg.txt`, con la misma lista y el mismo orden de antes. **Sin la variable no corre ninguno**, que es lo que necesita una institucion que reutilice el repo: publicaban capas del IIEG contra bases donde esas tablas no existen. Cada renglon es `Etiqueta|script.sh [argumentos]` y el perfil ausente aborta el arranque en vez de seguir en silencio.
+
 ### Corregido
 
 - Los scripts ya no pasan la credencial de GeoServer por la línea de comandos: `curl -u` la dejaba visible en `ps` para cualquier usuario del host mientras duraba la petición. Las 33 llamadas de los nueve scripts pasan por `gs_curl` (`scripts/lib/gs_curl.sh`), que la escribe en un archivo de configuración de `curl` sobre su propio descriptor (`curl -K <(printf ...)`); el `printf` es un builtin, así que no hay proceso ni archivo temporal de por medio. La configuración **no** puede ir por stdin: las tres llamadas que mandan el cuerpo con `--data-binary @-` —los dos datastores y el hexbin— comparten ese stdin, y `curl` lo agotaba leyendo la credencial, así que GeoServer recibía el cuerpo vacío y contestaba `400 Failed to read request` en los diez datastores.

@@ -27,15 +27,36 @@ set_charset() {
     ' >/dev/null 2>&1 || true
 }
 
+post_up_profile() {
+    [ -f .env ] || { printf '%s' "${POST_UP_PROFILE:-}"; return 0; }
+    (
+        set -a
+        . ./.env
+        set +a
+        printf '%s' "${POST_UP_PROFILE:-}"
+    )
+}
+
 init_all() {
-    run_step 'Datastores' bash scripts/init-datastores.sh
-    run_step 'Cultivos' bash scripts/init-cultivos-layer.sh
-    run_step 'Curvas render' bash scripts/init-curvas-render-layer.sh
-    run_step 'Terreno RGB' bash scripts/init-terreno-rgb-layer.sh
-    run_step 'Gridsets' bash scripts/init-gridsets.sh
-    run_step 'URLChecks' bash scripts/setup-urlchecks.sh
-    run_step 'GWC filters' bash scripts/init-gwc-filters.sh
-    run_step 'GWC seed' bash scripts/gwc-seed.sh --auto
+    local perfil archivo etiqueta comando
+    perfil=$(post_up_profile)
+    if [ -z "$perfil" ]; then
+        row 'Post-arranque' 'sin perfil' "$C_YELLOW" 'POST_UP_PROFILE vacio: no se publico nada'
+        return 0
+    fi
+    archivo="config/post-up.${perfil}.txt"
+    if [ ! -f "$archivo" ]; then
+        fail "Post-arranque:el perfil '$perfil' no existe" "Se esperaba $archivo"
+    fi
+    while IFS= read -r linea || [ -n "$linea" ]; do
+        linea=${linea%%#*}
+        [ -n "${linea// /}" ] || continue
+        etiqueta=${linea%%|*}
+        comando=${linea#*|}
+        read -r -a partes <<< "$comando"
+        [ ${#partes[@]} -gt 0 ] || continue
+        run_step "$etiqueta" bash "scripts/${partes[0]}" "${partes[@]:1}"
+    done < "$archivo"
     cron_ensure
 }
 

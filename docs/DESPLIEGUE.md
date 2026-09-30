@@ -72,8 +72,9 @@ make up
 ```
 
 Hace, en orden: crea la red de Docker si no existe, levanta los tres contenedores, espera a que
-GeoServer responda y corre la inicialización (`init_all`). Tarda un par de minutos la primera vez,
-porque descarga la imagen.
+GeoServer responda y, **si declaraste un perfil de post-arranque**, corre sus pasos. En una
+instalación nueva no hay perfil: GeoServer levanta limpio y no publica nada. Tarda un par de
+minutos la primera vez, porque descarga la imagen.
 
 Si algo falla, `make logs` abre un selector de servicio.
 
@@ -105,6 +106,23 @@ make init-gridsets     # crea un gridset en la proyección local
 todos los stores sin tocar las capas. `init-gridsets` crea el gridset de Jalisco (EPSG:6368) y su
 extensión: cambia esos valores en `scripts/init-gridsets.sh` por los de tu territorio, o sáltatelo
 y quédate con los gridsets que GeoServer trae.
+
+### Automatizarlo en cada arranque
+
+Si quieres que tus scripts corran después de cada `up` y `deploy`, declara un perfil:
+
+```bash
+# config/post-up.midependencia.txt
+Datastores|init-datastores.sh
+Mis capas|publicar-mis-capas.sh
+```
+
+```bash
+POST_UP_PROFILE=midependencia   # en el .env
+```
+
+Cada renglón es `Etiqueta|script.sh [argumentos]`, y el script se busca en `scripts/`. Sin la
+variable no corre ninguno, que es el comportamiento de una instalación nueva.
 
 ## 6. Detrás de un proxy inverso
 
@@ -161,9 +179,9 @@ Sincroniza el repositorio, reconstruye y vuelve a levantar, y repite la iniciali
 
 Tres cosas que no te sirven si no eres el instituto:
 
-1. **`init_all`, en `make/repo.sh`**, corre en cada `up` y `deploy`: publica capas propias
-   (`cultivos`, `curvas-render`, `terreno-rgb`), que contra tu base van a fallar, y crea el gridset
-   de Jalisco. Quita esas líneas o cámbialas por tus propios scripts.
+1. **El perfil `config/post-up.iieg.txt`** publica capas del instituto y crea el gridset de
+   Jalisco. **No tienes que borrarlo**: solo corre si el `.env` dice `POST_UP_PROFILE=iieg`. Déjalo
+   vacío y sirve como ejemplo de formato.
 2. **El sidecar `version-api` y las variables `ONTOY_*`** alimentan un monitoreo interno. Sin él,
    solo reporta la versión desplegada; se puede borrar el servicio del compose.
 3. **La red `iieg-network`** se llama así en `compose.yaml`. Renómbrala si te estorba; `make up` la

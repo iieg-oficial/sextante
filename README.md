@@ -83,8 +83,9 @@ otro nombre. Los `$$` son el escape de Compose. Cada nombre por el que se entre 
 | Caché de teselas | `gwc-seed` · `gwc-export` · `gwc-import` |
 | Publicación | `init-datastores` · `init-gridsets` · `init-gwc-filters` |
 
-**`up` y `deploy` corren solos la publicación**: reapuntan los datastores al PostGIS del `.env`,
-crean los gridsets, aplican los filtros de GWC, registran los URLChecks y siembran el caché.
+**`up` y `deploy` corren los pasos del perfil que declare `POST_UP_PROFILE`** en el `.env`
+(`config/post-up.<perfil>.txt`): reapuntar los datastores, crear gridsets, aplicar filtros de GWC,
+sembrar el caché. Sin perfil no corre ninguno, que es lo que quiere una instalación nueva.
 
 ## Estructura
 
