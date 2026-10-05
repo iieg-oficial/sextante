@@ -7,6 +7,10 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+### Agregado
+
+- `make init-instituto-layer` (`scripts/init-instituto-layer.sh`) publica `instituto:espacios`: workspace y datastore propios hacia el schema `instituto` de dataengine (migraciones 0052 y 0055), la capa en EPSG:6368 con `incluir = true` y el estilo `instituto_espacios` (color por tipo de espacio, nombres desde 1:1 500). Es idempotente. **No está en `post-up.iieg.txt` a propósito**: la capa queda pública y es el plano del edificio; antes de llevarla a producción hay que marcarla privada en el catálogo
+
 ### Cambiado
 
 - Los pasos que corrian tras cada `up` y `deploy` dejan de estar escritos en `init_all` y salen a un perfil: `config/post-up.<perfil>.txt`, activado por `POST_UP_PROFILE` en el `.env`. El nuestro es `post-up.iieg.txt`, con la misma lista y el mismo orden de antes. **Sin la variable no corre ninguno**, que es lo que necesita una institucion que reutilice el repo: publicaban capas del IIEG contra bases donde esas tablas no existen. Cada renglon es `Etiqueta|script.sh [argumentos]` y el perfil ausente aborta el arranque en vez de seguir en silencio.

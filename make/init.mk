@@ -1,4 +1,4 @@
-.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-hexbin-layer init-terreno-rgb-layer init-gwc-filters gwc-seed cron
+.PHONY: init-datastores init-gridsets init-cultivos-layer init-curvas-render-layer init-hexbin-layer init-terreno-rgb-layer init-instituto-layer init-gwc-filters gwc-seed cron
 
 ##@ Inicializacion
 
@@ -24,6 +24,12 @@ init-hexbin-layer: ## Publicar la capa del hexbin H3 precalculado por dataengine
 	@$(LIB)
 	banner 'INIT' 'hexbin layer'
 	bash scripts/init-hexbin-layer.sh
+
+init-instituto-layer: ## Publicar los espacios del instituto (schema instituto de dataengine)
+	@$(LIB)
+	banner 'INIT' 'espacios del instituto'
+	rule
+	bash scripts/init-instituto-layer.sh
 
 init-terreno-rgb-layer: ## Publicar el DEM codificado en RGB para el terreno 3D de mapalab
 	@$(LIB)
