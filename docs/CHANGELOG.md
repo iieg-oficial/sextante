@@ -7,6 +7,8 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.14.0] - 2026-10-06
+
 ### Agregado
 
 - `make init-instituto-layer` (`scripts/init-instituto-layer.sh`) publica `instituto:espacios`: workspace y datastore propios hacia el schema `instituto` de dataengine (migraciones 0052 y 0055), la capa en EPSG:6368 con `incluir = true` y el estilo `instituto_espacios` (color por tipo de espacio, nombres desde 1:1 500). Es idempotente. **No está en `post-up.iieg.txt` a propósito**: la capa queda pública y es el plano del edificio; antes de llevarla a producción hay que marcarla privada en el catálogo
