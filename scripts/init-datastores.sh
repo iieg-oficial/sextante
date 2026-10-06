@@ -13,8 +13,8 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 
 wait_for_geoserver() {
   local max_attempts=24
@@ -31,7 +31,7 @@ wait_for_geoserver() {
   echo "Esperando GeoServer (REST)..."
   attempt=0
   local http_code
-  until http_code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces.json") && [ "$http_code" = "200" ]; do
+  until http_code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" "$GEOSERVER_URL/rest/workspaces.json") && [ "$http_code" = "200" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_attempts" ]; then
       echo "REST no respondió 200 después de $((max_attempts * 5)) segundos (último code=$http_code)." >&2
@@ -92,11 +92,11 @@ datastore_request() {
   local attempt=0
   local http_code
   while [ "$attempt" -lt "$max_retries" ]; do
-    http_code=$(curl -s -o /dev/null --max-time 60 -w "%{http_code}" -u "$AUTH" \
+    http_code=$(gs_curl -s -o /dev/null --max-time 60 -w "%{http_code}" \
       -X "$method" \
       -H "Content-Type: application/json" \
-      -d "$payload" \
-      "$url")
+      --data-binary @- \
+      "$url" <<<"$payload")
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
       echo "$http_code"
       return 0
@@ -119,7 +119,7 @@ create_datastore() {
   payload=$(build_datastore_payload "$name" "$schema")
 
   local http_code
-  http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" \
+  http_code=$(gs_curl -s --max-time 15 -o /dev/null -w "%{http_code}" \
     "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$name.json")
 
   local result
@@ -145,7 +145,7 @@ create_datastore() {
 }
 
 list_workspaces() {
-  curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces.json" \
+  gs_curl -s --max-time 15 "$GEOSERVER_URL/rest/workspaces.json" \
     | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -158,7 +158,7 @@ if isinstance(node, dict):
 
 list_datastores_with_schema() {
   local workspace=$1
-  curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores.json" \
+  gs_curl -s --max-time 15 "$GEOSERVER_URL/rest/workspaces/$workspace/datastores.json" \
     | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -170,7 +170,7 @@ for ds in (node.get("dataStore") or []):
 ' | while read -r ds; do
     [ -z "$ds" ] && continue
     local schema
-    schema=$(curl -s --max-time 15 -u "$AUTH" "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$ds.json" \
+    schema=$(gs_curl -s --max-time 15 "$GEOSERVER_URL/rest/workspaces/$workspace/datastores/$ds.json" \
       | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -187,7 +187,7 @@ verify_credentials() {
   local http_code
   local max_retries=12
   local attempt=0
-  http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
+  http_code=$(gs_curl -s --max-time 15 -o /dev/null -w "%{http_code}" "$GEOSERVER_URL/rest/workspaces")
   while [ "$http_code" = "401" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_retries" ]; then
@@ -197,7 +197,7 @@ verify_credentials() {
     fi
     echo "Credenciales aun no aplicadas, reintentando en 5s... (intento $attempt/$max_retries)"
     sleep 5
-    http_code=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/rest/workspaces")
+    http_code=$(gs_curl -s --max-time 15 -o /dev/null -w "%{http_code}" "$GEOSERVER_URL/rest/workspaces")
   done
 }
 

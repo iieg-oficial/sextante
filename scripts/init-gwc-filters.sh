@@ -10,8 +10,8 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-GEOSERVER_URL="http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:-sextante}"
-AUTH="${GEOSERVER_ADMIN_USER}:${GEOSERVER_ADMIN_PASSWORD}"
+GEOSERVER_URL="http://${GEOSERVER_BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8080}/${GEOSERVER_CONTEXT_ROOT:-sextante}"
+source "$SCRIPT_DIR/lib/gs_curl.sh"
 ENV_VALUES="geom:geom_iieg,geom:geom_inegi"
 ENV_DEFAULT="geom:geom_iieg"
 GATEWAY_CONTAINER="${GATEWAY_CONTAINER:-gateway-hub-nginx-1}"
@@ -71,7 +71,7 @@ USAGE
 
 wait_for_gwc() {
   local attempt=0 code
-  until code=$(curl -s -o /dev/null --max-time 10 -w "%{http_code}" -u "$AUTH" "$GEOSERVER_URL/gwc/rest/layers") && [ "$code" = "200" ]; do
+  until code=$(gs_curl -s -o /dev/null --max-time 10 -w "%{http_code}" "$GEOSERVER_URL/gwc/rest/layers") && [ "$code" = "200" ]; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge 24 ]; then
       echo "GWC REST no respondio 200 tras 120s (ultimo code=$code)." >&2
@@ -84,7 +84,7 @@ wait_for_gwc() {
 apply_filters() {
   local layer="$1" cql="$2"
   local current
-  current=$(curl -s --max-time 30 -u "$AUTH" "$GEOSERVER_URL/gwc/rest/layers/${layer}.xml")
+  current=$(gs_curl -s --max-time 30 "$GEOSERVER_URL/gwc/rest/layers/${layer}.xml")
   if ! printf '%s' "$current" | grep -q "<GeoServerLayer>"; then
     echo "  x $layer (no esta publicado en GWC)" >&2
     return 1
@@ -98,7 +98,7 @@ apply_filters() {
     python3 "$SCRIPT_DIR/lib/gwc_filters.py")
 
   local code
-  code=$(curl -s -o /dev/null --max-time 30 -w "%{http_code}" -u "$AUTH" \
+  code=$(gs_curl -s -o /dev/null --max-time 30 -w "%{http_code}" \
     -X POST -H "Content-Type: text/xml; charset=UTF-8" --data-binary "$payload" \
     "$GEOSERVER_URL/gwc/rest/layers/${layer}.xml")
 
