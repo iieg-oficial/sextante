@@ -17,3 +17,4 @@
 # el mismo featuretype de 346 836 poligonos.
 
 economia:cultivos
+raster:elevacion_terreno_rgb=6-12

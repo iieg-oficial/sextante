@@ -5,7 +5,9 @@
 backup: ## Respaldar geoserver_data y plugins en backups/
 	@$(LIB)
 	banner 'BACKUP'
+	umask 077
 	mkdir -p $(BACKUP_DIR)
+	chmod 700 $(BACKUP_DIR)
 	file=$(BACKUP_DIR)/geoserver_data_$$(date +%Y%m%d_%H%M%S).tar.gz
 	docker exec -u root sextante find /opt/geoserver/data_dir \( -name 'global.xml.*.tmp' -o -name 'wfs.xml.*.tmp' -o -name 'wms.xml.*.tmp' \) -delete 2>/dev/null || true
 	docker run --rm -v $(CURDIR):/data alpine rm -rf /data/.backup_staging

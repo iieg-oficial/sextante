@@ -77,6 +77,27 @@ services:
       - iieg-network
     logging: *logging
 
+  docker-socket-proxy:
+    image: nginx:1.30.4-alpine
+    container_name: sextante-docker-socket-proxy
+    restart: unless-stopped
+    user: "101:101"
+    group_add:
+      - ${DOCKER_GID:?}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./version-api/docker-proxy.conf:/etc/nginx/nginx.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
+    logging: *logging
+
   version-api:
     build: ./version-api
     container_name: sextante-version-api
@@ -85,16 +106,25 @@ services:
       - "${VERSION_API_BIND_ADDR:?}:${VERSION_API_PORT:?}:8088"
     environment:
       ONTOY_SERVICE: sextante
+      ONTOY_NODE: ${ONTOY_NODE:?}
+      ONTOY_NODE_REPORTER: ${ONTOY_NODE_REPORTER:?}
+      ONTOY_PEER_CHECKS: ${ONTOY_PEER_CHECKS}
       ONTOY_COMPOSE_PROJECT: sextante
       ONTOY_DISK_PATH: ${ONTOY_DISK_PATH:?}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
     volumes:
       - ./VERSION:/app/VERSION:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/host/etc/os-release:ro
+    depends_on:
+      - docker-socket-proxy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/ontoy').read()"]
     networks:
       - iieg-network
+      - docker-api
     logging: *logging
 
 networks:
@@ -102,3 +132,6 @@ networks:
     driver: bridge
   iieg-network:
     external: true
+  docker-api:
+    name: sextante-docker-api
+    internal: true

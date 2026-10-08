@@ -1,0 +1,17 @@
+# Pasos que corren despues de cada `make up` y `make deploy`, en este orden.
+# Los activa POST_UP_PROFILE=iieg en el .env. Sin esa variable no corre ninguno.
+#
+# Formato:  Etiqueta|script.sh [argumentos]
+# El script se busca en scripts/. Las lineas vacias y las que empiezan con # se ignoran.
+#
+# Otra institucion no necesita tocar este archivo: deja POST_UP_PROFILE vacio, o crea
+# su propio config/post-up.<perfil>.txt con sus scripts.
+
+Datastores|init-datastores.sh
+Cultivos|init-cultivos-layer.sh
+Curvas render|init-curvas-render-layer.sh
+Terreno RGB|init-terreno-rgb-layer.sh
+Gridsets|init-gridsets.sh
+URLChecks|setup-urlchecks.sh
+GWC filters|init-gwc-filters.sh
+GWC seed|gwc-seed.sh --auto

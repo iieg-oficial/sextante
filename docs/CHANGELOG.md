@@ -7,6 +7,212 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.14.0] - 2026-10-06
+
+### Agregado
+
+- `make init-instituto-layer` (`scripts/init-instituto-layer.sh`) publica `instituto:espacios`: workspace y datastore propios hacia el schema `instituto` de dataengine (migraciones 0052 y 0055), la capa en EPSG:6368 con `incluir = true` y el estilo `instituto_espacios` (color por tipo de espacio, nombres desde 1:1 500). Es idempotente. **No está en `post-up.iieg.txt` a propósito**: la capa queda pública y es el plano del edificio; antes de llevarla a producción hay que marcarla privada en el catálogo
+
+### Cambiado
+
+- Los pasos que corrian tras cada `up` y `deploy` dejan de estar escritos en `init_all` y salen a un perfil: `config/post-up.<perfil>.txt`, activado por `POST_UP_PROFILE` en el `.env`. El nuestro es `post-up.iieg.txt`, con la misma lista y el mismo orden de antes. **Sin la variable no corre ninguno**, que es lo que necesita una institucion que reutilice el repo: publicaban capas del IIEG contra bases donde esas tablas no existen. Cada renglon es `Etiqueta|script.sh [argumentos]` y el perfil ausente aborta el arranque en vez de seguir en silencio.
+
+### Corregido
+
+- Los scripts ya no pasan la credencial de GeoServer por la línea de comandos: `curl -u` la dejaba visible en `ps` para cualquier usuario del host mientras duraba la petición. Las 33 llamadas de los nueve scripts pasan por `gs_curl` (`scripts/lib/gs_curl.sh`), que la escribe en un archivo de configuración de `curl` sobre su propio descriptor (`curl -K <(printf ...)`); el `printf` es un builtin, así que no hay proceso ni archivo temporal de por medio. La configuración **no** puede ir por stdin: las tres llamadas que mandan el cuerpo con `--data-binary @-` —los dos datastores y el hexbin— comparten ese stdin, y `curl` lo agotaba leyendo la credencial, así que GeoServer recibía el cuerpo vacío y contestaba `400 Failed to read request` en los diez datastores.
+- El check `containers` de `/ontoy` ya no marca degradado un contenedor de un solo uso que terminó con código 0 (el `monitor-data-init` de huachicol), y el sidecar deja de contar su propia salud, que lo dejaba en `unhealthy` en cada arranque.
+- El proxy del socket de Docker del sidecar `/ontoy` deja de ser `tecnativa/docker-socket-proxy`: con `CONTAINERS=1` también dejaba pedir `/containers/{id}/json` (el entorno, con secretos), `logs` y `archive` de cualquier contenedor del host. Ahora es `nginx:1.30.4-alpine` sin root, de solo lectura y sin capacidades, con `version-api/docker-proxy.conf`, que solo deja pasar `GET /containers/json` (con o sin prefijo `/vX.Y/`) y responde 403 a todo lo demás. Pide `DOCKER_GID` en el `.env`.
+
+## [2.13.0] - 2026-09-25
+
+### Cambiado: el terreno 3D lleva el relieve real de los estados vecinos
+
+`elevacion_terreno_rgb` dejaba de tener dato a unos 37 km del límite: `gdal_fillnodata` inventaba
+ese margen estirando el borde en línea recta, y en el 3D de mapalab se veían estrías hasta un canto
+redondeado donde el terreno caía a 0 m. `init-terreno-rgb-layer.sh` arma ahora el DEM con
+Copernicus GLO-90 (libre, AWS Open Data) 200 km alrededor del estado, a 30 m, con el DEM de Jalisco
+encima; si no puede bajarlo, vuelve al relleno de antes. Al regenerarlo relee el store y recalcula la
+extensión, que antes quedaba fija en la del archivo viejo.
+
+### Agregado: `raster:elevacion_jalisco_rgb` para el sombreado
+
+El mismo DEM de Jalisco sin rellenar, publicado sobre el store `elevacion` con el estilo
+`terreno_rgb`. mapalab lo usa para el sombreado del 3D, así que fuera del estado no se dibuja
+relieve y el mapa queda limpio.
+
+**Al desplegar:** borrar `workspaces/raster/terreno/elevacion_jalisco_relleno.tif` del data dir y
+correr `make init-terreno-rgb-layer` (baja unos 80 tiles y tarda unos minutos). Va antes que mapalab
+1.213.5. El código de esta versión salió en el commit de 2.12.1.
+
+## [2.12.1] - 2026-09-25
+
+### Corregido: los scripts de init apuntaban a `localhost:8080`
+
+Desde 2.12.0 Tomcat se publica en `GEOSERVER_BIND_ADDR:GEOSERVER_PORT`, y los nueve scripts de
+`scripts/` (datastores, capas, gridsets, filtros de GWC, siembra y urlchecks) seguían llamando a
+`http://localhost:8080`: con otra IP de bind u otro puerto, el `make deploy` fallaba en el primer
+paso de init. Ahora arman la URL con esas dos variables, que ya leen del `.env`.
+
+## [2.12.0] - 2026-09-24
+
+Reparaciones de la auditoria de seguridad del 2026-09-24 (`context-ame-esta`,
+`historial/2026-09-24-auditoria-seguridad.md`). La consola, la REST y el catch-all de `/sextante/`
+se cerraron del lado del gateway (gateway-hub 1.55.0).
+
+### Corregido
+
+- **Se elimina `proxy_server.py`.** Era un servidor de desarrollo que servia la raiz del repo
+  —`.env` incluido— en `0.0.0.0`. Nada lo invocaba.
+- **La contrasena de PostGIS ya no viaja en la linea de comandos de `curl`.** `init-datastores.sh` e
+  `init-hexbin-layer.sh` mandan el cuerpo del datastore por stdin (`--data-binary @-`), asi que no
+  aparece en `ps` mientras corre el script.
+- **`set_charset` ya no saca la credencial del admin a la linea de comandos del host.** Antes la leia
+  con `docker exec env` y la pasaba a `curl -u`; ahora el `curl` corre dentro del contenedor y recibe
+  la cabecera `Authorization` por stdin con `-K -`.
+- **Respaldos solo legibles por su dueno.** `make backup` corre con `umask 077` y deja `backups/` en
+  `700`: el tar lleva los `datastore.xml` con la contrasena de PostGIS.
+
+### Cambiado
+
+- `.env.example`: `POSTGIS_SSLMODE=require` (dataengine ya tiene `ssl = on` y `hostssl` en
+  `pg_hba`) y `ENABLE_JSONP=false` (ningun repo pide JSONP). **El `sslmode` queda guardado en el XML
+  de cada datastore**: al cambiarlo en el `.env` hay que correr `make init-datastores`.
+- `.env.example`: la arista de `ONTOY_PEER_CHECKS` a S4 pasa de `:6432` a `:5432`, porque pgbouncer ya
+  no se publica fuera de la VM.
+- El sidecar `version-api` ya no monta `docker.sock`; consulta contenedores por
+  `DOCKER_HOST=tcp://docker-socket-proxy:2375` (`tecnativa/docker-socket-proxy:v0.5.0`,
+  `CONTAINERS=1` y lo demas en 0, red interna `sextante-docker-api`) y corre como uid 65534.
+- `ontoy_server.py` sincronizado con huachicol 2.18.0: 500 con texto fijo, tope de 8 hilos, timeout
+  de 5 s, cache de 2 s y CPU sin sleep por peticion; desaparece `ONTOY_CPU_SAMPLE_SECONDS`.
+
+## [2.11.0] - 2026-09-22
+
+### Corregido: el terreno 3D colgaba una cortina de picos en el borde de Jalisco
+
+Fuera del estado el DEM no tiene datos y el tile sale transparente; MapLibre lee un pixel
+transparente como **0 metros**, así que en el borde —dentado a 15 m— el terreno caia al nivel del
+mar pixel de por medio y quedaba un fleco de picos colgando.
+
+Ahora la capa se publica sobre `elevacion_jalisco_relleno.tif`, que genera el propio script con
+`gdal_fillnodata.py` (`-md 2500`, unos 37 km) si todavia no existe: el terreno continua mas alla del
+limite y el corte se va al borde del bbox del DEM. El archivo se queda en el data dir, no se
+versiona, y tarda varios minutos la primera vez.
+
+- Coveragestore propio `raster:terreno_rgb`; si la capa seguia colgada del store `elevacion`, el
+  script la retira antes de republicar.
+- Al cambiar de origen se purga el cache de GWC de la capa (`masstruncate`), porque los tiles viejos
+  traen los huecos.
+
+## [2.10.0] - 2026-09-21
+
+### Agregado: el DEM codificado en RGB para el terreno 3D de mapalab
+
+`scripts/init-terreno-rgb-layer.sh` (`make init-terreno-rgb-layer`, y corre en cada `make up` y
+`make deploy`) publica `raster:elevacion_terreno_rgb`: la misma cobertura que
+`raster:elevacion_jalisco_intervalo_vertical_10m`, con el estilo `raster:terreno_rgb`, que guarda la
+altura en los canales del PNG (`altura = R*256 + G`, en metros). mapalab 1.173.0 la lee como
+`raster-dem` de MapLibre con `encoding: 'custom'`.
+
+- El SLD es una rampa `extended="true"` generada por el script; sin `extended`, GeoServer la acota a
+  256 colores y la codificación se rompe.
+- Interpolación al vecino más cercano: un remuestreo bilineal mezclaría los canales y daría
+  saltos de hasta 128 m en los cortes.
+- Tile layer de GWC solo en `EPSG:900913` y `image/png`, con `expireClients` de una semana. Se
+  siembra de z6 a z12 desde `config/gwc-seed-auto.txt` (≈55 KB por tile).
+- Idempotente; `--force` rescribe el estilo. Falla explícitamente si no existe el coveragestore
+  `raster:elevacion`.
+
+Verificado contra el DEM original con `gdallocationinfo`: 3 920 m en el Nevado de Colima y 1 550 m
+en Guadalajara, a z9 y z12, decodificados igual al metro.
+
+## [2.9.1] - 2026-09-07
+
+### Corregido: el login se bloqueaba desde cualquier nombre que no fuera el del `.env`
+
+`GEOSERVER_PROXY_BASE_URL` traia un host fijo, y GeoServer arma con el el `action` del formulario de
+login. Entrando por otro nombre el POST salia cross-origin y el `form-action 'self'` del gateway lo
+bloqueaba: el boton no hacia nada. Con los nombres internos del AD en uso, esto dejo la consola
+inaccesible por todos menos uno.
+
+Ahora la URL base sigue las cabeceras del gateway:
+
+```
+GEOSERVER_PROXY_BASE_URL=$${X-Forwarded-Proto}://$${X-Forwarded-Host}/sextante
+```
+
+**Los `$$` son escape de compose, no un error**: GeoServer tiene que recibir `${...}` literal para
+sustituirlo el mismo. Requiere `useHeadersProxyURL=true` en `config/global.xml.template`, que ya
+venia activado.
+
+Ampliar `form-action` no habria servido: la sesion se crearia en el host del `action` mientras se
+navega otro, y el login entra en bucle.
+
+`GEOSERVER_CSRF_WHITELIST` es un segundo candado independiente —GeoServer compara el `Referer`—, asi
+que cada nombre nuevo por el que se vaya a entrar tiene que estar tambien ahi.
+
+Diagnostico y verificacion en `runbook/sextante.md`.
+
+## [2.9.0] - 2026-08-27
+
+### Agregado: el `/ontoy` declara a que nodo pertenece
+
+huachicol 2.9.0 amplio el contrato para que el monitor agrupe por servidor y no solo por servicio.
+`ONTOY_NODE` dice donde corre este repo —**S3**— y `ONTOY_NODE_REPORTER` decide quien habla del
+host. Es el reportero de su nodo, asi que su `/ontoy` agrega carga, RAM, swap y uptime, leidos de `/proc` sin exporters ni puertos nuevos.
+
+`ONTOY_PEER_CHECKS` queda disponible para las aristas entre nodos; vacia por omision.
+
+**Las dos primeras son obligatorias**: el compose falla si faltan, asi que hay que agregarlas al
+`.env` de cada entorno antes de desplegar.
+
+De paso, `ontoy_server.py` se sincroniza con el de huachicol, que es la fuente y llevaba tiempo
+divergiendo entre copias. Los checks de maquina quedan marcados como informativos y ya no tumban el
+estado del servicio.
+
+## [2.8.0] - 2026-08-25
+
+### Corregido: Tomcat rechazaba con 400 los CQL grandes del visor
+
+El conector HTTP no declaraba `maxHttpHeaderSize`, asi que usaba el default de Tomcat —**8 192
+bytes**— y cualquier `GetMap` con una URI mas larga moria con `400` antes de llegar a GeoServer. Se
+sube a **65 536**.
+
+El caso: la capa «Establecimientos de salud» agrupa 33 subcapas sobre `salud.unidades_salud`, cada
+una con su filtro de institucion y nivel, mas el rango de fechas. Con la vista por municipio activa
+la URI llegaba a **10 867 bytes**. En el visor la capa aparecia vacia y en consola solo se veia
+`Failed to load resource: 400`.
+
+**Eran dos topes en serie, no uno.** gateway-hub 1.49.0 subio antes `large_client_header_buffers`,
+que estaba en el default de nginx de 4 x 8 KB; con eso la peticion ya cruzaba el proxy pero seguia
+muriendo aqui. Comprobado con un CQL de 10 652 caracteres: **200 directo a Tomcat y 200 por el
+gateway**, contra 400 en ambos antes del cambio.
+
+**El CQL crece con el catalogo**: cada subcapa nueva del grupo alarga la URI, asi que los defaults
+de 8 KB no dan para este visor.
+## [2.7.5] - 2026-09-17
+
+### Corregido: `make restore` dejaba al admin sin contraseña
+
+`reset-admin.sh` cargaba `/scripts/env-data.sh` y `/scripts/functions.sh`, rutas que
+`kartoza/geoserver:3.0.0` movio a `/scripts/lib/` (`env-data.sh`, `utils.sh`, `geoserver.sh`).
+Sin esas libs `make_hash` no existia, `PWD_HASH` quedaba vacio y el `sed` escribia
+`password=""` en `users.xml`: GeoServer respondia 500 a cualquier login y la interfaz web
+quedaba inaccesible. El bloque remoto corria sin `set -e`, asi que el script seguia adelante e
+imprimia "Admin actualizado a: <usuario>" sobre un archivo ya roto.
+
+Ahora las libs se cargan desde `/scripts/lib/` cuando existe —la ruta vieja queda de respaldo
+para entornos que sigan en la imagen 2.x—, el bloque remoto lleva `set -e` y un hash vacio
+aborta antes de tocar `users.xml`.
+
+La espera posterior al reinicio apuntaba a `http://localhost:8080/geoserver/web/`, con el
+context root escrito a mano: con `GEOSERVER_CONTEXT_ROOT=sextante` esa URL da 404 siempre y el
+paso terminaba en `Error 1` a los 120 s aunque GeoServer hubiera arrancado en 14 s. Pasa a
+`${GEOSERVER_CONTEXT_ROOT:-sextante}`, igual que `wait_geoserver`.
+
+Ese mismo bucle conservaba el limite de 24 intentos que `wait_geoserver` dejo atras en 2.7.4.
+Como el reinicio ocurre con el `data_dir` ya restaurado, los mismos nueve minutos de arranque
+volvian a agotarlo. Pasa a `${GEOSERVER_WAIT_MAX:-180}`.
+
 ## [2.7.4] - 2026-09-10
 
 ### Corregido: `make deploy` y `make restore` cortaban antes de que GeoServer respondiera
@@ -18,6 +224,40 @@ los directorios de la imagen en cada recreacion y despues carga el catalogo. El 
 seed y cron) mientras el contenedor seguia arrancando y quedaba sano. Pasa a 180 intentos (15 min);
 el bucle sale en cuanto responde, asi que esperar de mas no cuesta nada.
 
+## [2.7.3] - 2026-08-18
+
+### Corregido: `gwc_cache/` no estaba ignorado por git
+
+Al sacar el blobstore del `data_dir` (2.5.0), el caché quedó en la raíz del repo y sin entrada en
+`.gitignore`: aparecía como no rastreado en cada `git status` y un `git add -A` distraído lo habría
+metido al repo. En este nodo son 156 KB, pero en el espejo son **1.5 millones de archivos**, y
+además sus permisos hacen que `git status` avise de directorios que no puede leer.
+
+## [2.7.2] - 2026-08-18
+
+### Corregido: el hexbin va en su propio workspace, no en `general`
+
+`init-datastores.sh` fuerza **todos** los datastores del workspace `general` al schema `mapa_base`
+via `SCHEMA_MAP`. El datastore del hexbin apunta a `mapalab`, asi que cada reapuntado se lo llevaba
+por delante y GeoServer respondia `Schema 'hexbin_agregado' does not exist`.
+
+La capa pasa a `mapalab:hexbin_agregado`, en un workspace propio que el script crea si falta y que
+ningun reapuntado toca.
+
+## [2.7.1] - 2026-08-18
+
+### Agregado: `make init-hexbin-layer`, publica la capa del hexbin H3
+
+dataengine precalcula los conteos H3 de las capas de puntos y expone la vista
+`mapalab.hexbin_agregado` (sus migraciones 0037 y 0038). Aqui se registra en GeoServer lo que no
+vive en codigo: un datastore `mapalab_hexbin` hacia el schema `mapalab` y la capa
+`general:hexbin_agregado` en EPSG:6368.
+
+El script es idempotente: si el datastore existe lo actualiza, si la capa existe no hace nada. Usa
+las mismas `POSTGIS_*` del `.env` que el resto de datastores, asi que no hay credencial nueva.
+
+Sin esto, el visor no encuentra los conteos y cae al calculo en el navegador, que sigue funcionando
+pero con su tope de 20 000 elementos.
 ## [2.7.0] - 2026-08-07
 
 ### Cambiado: la ruta del blobstore en el host se elige por nodo
