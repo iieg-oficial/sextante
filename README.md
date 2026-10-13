@@ -9,7 +9,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/versión-2.13.0-5C2472" alt="Versión 2.13.0">
-  <img src="https://img.shields.io/badge/GeoServer-3.0.0-1F6FEB" alt="GeoServer 3.0.0">
+  <img src="https://img.shields.io/badge/GeoServer-3.0.1-1F6FEB" alt="GeoServer 3.0.1">
   <img src="https://img.shields.io/badge/Tomcat-11-D97706" alt="Tomcat 11">
   <img src="https://img.shields.io/badge/Java-21_LTS-DC2626" alt="Java 21 LTS">
   <img src="https://img.shields.io/badge/licencia-MIT-16A34A" alt="Licencia MIT">
@@ -66,7 +66,7 @@ otro nombre. Los `$$` son el escape de Compose. Cada nombre por el que se entre 
 
 | Contenedor | Qué hace |
 |---|---|
-| `sextante` | GeoServer 3.0.0 sobre Tomcat 11 y Java 21, imagen [`ghcr.io/ghegar/sacbe`](https://github.com/GHEgar/sacbe) |
+| `sextante` | GeoServer 3.0.1 sobre Tomcat 11 y Java 21, imagen [`ghcr.io/ghegar/sacbe`](https://github.com/GHEgar/sacbe) |
 | `sextante-docker-socket-proxy` | Acceso acotado y sin root al socket de Docker |
 | `sextante-version-api` | Expone la versión desplegada y el estado del nodo |
 
