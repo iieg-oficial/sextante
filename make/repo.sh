@@ -17,6 +17,20 @@ wait_geoserver() {
     done
 }
 
+ensure_data_dirs() {
+    local cache image dir
+    cache=$( [ -f .env ] && ( set -a; . ./.env; set +a; printf '%s' "${GWC_CACHE_HOST_DIR:-}" ) )
+    image=$(grep -m1 -oE 'ghcr\.io/ghegar/sacbe:[^[:space:]]+' compose.yaml)
+    for dir in geoserver_data $cache; do
+        [ -e "$dir" ] && continue
+        mkdir -p "$(dirname "$dir")"
+        docker run --rm --network none --user 0 --entrypoint sh -v "$(cd "$(dirname "$dir")" && pwd):/p" "$image" \
+            -c "mkdir -p '/p/$(basename "$dir")' && chown 2000:2000 '/p/$(basename "$dir")'" >/dev/null \
+            || fail "Directorio:no se pudo crear $dir con uid 2000"
+        row 'Directorio' 'creado' "$C_GREEN" "($dir, uid 2000)"
+    done
+}
+
 set_charset() {
     docker exec -i sextante sh -c '
         auth=$(printf "%s:%s" "$GEOSERVER_ADMIN_USER" "$GEOSERVER_ADMIN_PASSWORD" | base64 -w0)

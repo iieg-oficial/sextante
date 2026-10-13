@@ -33,6 +33,7 @@ STYLE=terreno_rgb
 MAX_ELEVATION=4352
 CONTENEDOR=${GEOSERVER_CONTAINER_NAME:-sextante}
 DATA_DIR=/opt/geoserver/data_dir
+GDAL_IMAGE=ghcr.io/osgeo/gdal:ubuntu-small-3.12.2@sha256:885caba325a405ab08793feba1510170ef19d9758c41849f8554ac97e7221dd3
 
 FORCE="${1:-}"
 PURGAR=0
@@ -117,44 +118,51 @@ bajar_contexto() {
   [ "$bajados" -gt 0 ]
 }
 
+gdal() {
+  docker run --rm --network none --user 2000:2000 --volumes-from "$CONTENEDOR" "$@"
+}
+
 dem_con_contexto() {
-  local local_dir remoto=/tmp/terreno-contexto
+  local local_dir remoto=/contexto
   local_dir=$(mktemp -d)
   echo "  bajando Copernicus GLO-90 alrededor de Jalisco..."
   if ! bajar_contexto "$local_dir"; then
     rm -rf "$local_dir"
     return 1
   fi
-  docker exec "$CONTENEDOR" rm -rf "$remoto" >/dev/null 2>&1
-  docker cp "$local_dir" "$CONTENEDOR:$remoto" >/dev/null || { rm -rf "$local_dir"; return 1; }
-  rm -rf "$local_dir"
+  chmod -R a+rX "$local_dir"
   echo "  armando el DEM con el terreno vecino (tarda unos minutos)..."
-  docker exec -e ORIGEN="$DATA_DIR/$ORIGEN_TIF" -e SALIDA="$DATA_DIR/$RELLENO_TIF" -e REMOTO="$remoto" \
-    -e MARGEN="$MARGEN_M" -e RES="$RESOLUCION_M" "$CONTENEDOR" bash -c '
+  gdal -v "$local_dir:$remoto:ro" -e ORIGEN="$DATA_DIR/$ORIGEN_TIF" -e SALIDA="$DATA_DIR/$RELLENO_TIF" \
+    -e REMOTO="$remoto" -e MARGEN="$MARGEN_M" -e RES="$RESOLUCION_M" "$GDAL_IMAGE" bash -c '
     set -e
+    trabajo=$(mktemp -d)
     read -r x0 y0 x1 y1 < <(python3 -c "
 import json, subprocess, os
 info = json.loads(subprocess.check_output([\"gdalinfo\", \"-json\", os.environ[\"ORIGEN\"]]))
 x0, y1 = info[\"cornerCoordinates\"][\"upperLeft\"]
 x1, y0 = info[\"cornerCoordinates\"][\"lowerRight\"]
 m = int(os.environ[\"MARGEN\"])
-open(os.environ[\"REMOTO\"] + \"/srs.wkt\", \"w\").write(info[\"coordinateSystem\"][\"wkt\"])
 print(x0 - m, y0 - m, x1 + m, y1 + m)
 ")
-    gdalbuildvrt -q "$REMOTO/contexto.vrt" "$REMOTO"/Copernicus_*.tif
-    gdalwarp -q -overwrite -t_srs "$REMOTO/srs.wkt" -tr "$RES" "$RES" -te "$x0" "$y0" "$x1" "$y1" -r cubic \
+    gdalsrsinfo -o wkt "$ORIGEN" > "$trabajo/srs.wkt"
+    gdalbuildvrt -q "$trabajo/contexto.vrt" "$REMOTO"/Copernicus_*.tif
+    gdalwarp -q -overwrite -t_srs "$trabajo/srs.wkt" -tr "$RES" "$RES" -te "$x0" "$y0" "$x1" "$y1" -r cubic \
       -ot Int16 -dstnodata -32768 -multi -wo NUM_THREADS=ALL_CPUS \
-      -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=2 -co BIGTIFF=IF_SAFER "$REMOTO/contexto.vrt" "$REMOTO/salida.tif"
-    gdalwarp -q -r average -srcnodata -32768 "$ORIGEN" "$REMOTO/salida.tif"
-    gdaladdo -q -r average --config COMPRESS_OVERVIEW DEFLATE --config PREDICTOR_OVERVIEW 2 "$REMOTO/salida.tif" 2 4 8 16 32
-    mv "$REMOTO/salida.tif" "$SALIDA"
-    rm -rf "$REMOTO"
+      -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=2 -co BIGTIFF=IF_SAFER "$trabajo/contexto.vrt" "$trabajo/salida.tif"
+    gdalwarp -q -r average -srcnodata -32768 "$ORIGEN" "$trabajo/salida.tif"
+    gdaladdo -q -r average --config COMPRESS_OVERVIEW DEFLATE --config PREDICTOR_OVERVIEW 2 "$trabajo/salida.tif" 2 4 8 16 32
+    cp "$trabajo/salida.tif" "$SALIDA.tmp"
+    mv "$SALIDA.tmp" "$SALIDA"
+    rm -rf "$trabajo"
   ' >/dev/null 2>&1
+  local rc=$?
+  rm -rf "$local_dir"
+  return $rc
 }
 
 dem_relleno() {
   echo "  sin terreno vecino: rellenando los huecos con gdal_fillnodata..."
-  docker exec "$CONTENEDOR" gdal_fillnodata.py -md "$FILL_MAX_DISTANCE" -of GTiff \
+  gdal "$GDAL_IMAGE" gdal_fillnodata.py -md "$FILL_MAX_DISTANCE" -of GTiff \
     -co TILED=YES -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER \
     "$DATA_DIR/$ORIGEN_TIF" "$DATA_DIR/$RELLENO_TIF" >/dev/null 2>&1
 }
@@ -164,7 +172,6 @@ if ! docker exec "$CONTENEDOR" test -f "$DATA_DIR/$RELLENO_TIF"; then
     echo "✗ No se pudo generar el DEM del terreno dentro de $CONTENEDOR" >&2
     exit 1
   fi
-  docker exec "$CONTENEDOR" chown geoserveruser:geoserverusers "$DATA_DIR/$RELLENO_TIF" >/dev/null 2>&1 || true
   PURGAR=1
   REGENERADO=1
 fi

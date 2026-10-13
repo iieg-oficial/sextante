@@ -28,11 +28,10 @@ El `.env` **no se versiona** y el compose **falla si falta una variable**: no ha
 defecto escondidos. Lo mínimo que hay que llenar:
 
 ```bash
-# Credenciales del administrador. RESET_ADMIN_CREDENTIALS=TRUE las reescribe en cada arranque,
-# que es lo que quieres mientras montas el servidor.
+# Credenciales del administrador. Siembran el admin si el data_dir no trae security/;
+# para cambiarlas después: bash scripts/reset-admin.sh
 GEOSERVER_ADMIN_USER=admin
 GEOSERVER_ADMIN_PASSWORD=<una larga, sin comillas>
-RESET_ADMIN_CREDENTIALS=TRUE
 
 # Dónde se publica y bajo qué prefijo
 GEOSERVER_BIND_ADDR=127.0.0.1
@@ -193,7 +192,7 @@ Tres cosas que no te sirven si no eres el instituto:
 |---|---|
 | REST responde 401 con la contraseña correcta | El valor va entrecomillado en el `.env` |
 | El botón de inicio de sesión no hace nada | `GEOSERVER_PROXY_BASE_URL` con host fijo detrás del proxy |
-| El contenedor reinicia sin parar, con `Read-only file system` | Un montaje `:ro` dentro de una ruta que la imagen hace `chown` |
+| `Permission denied` al escribir en el data_dir | El data_dir del host no es de uid 2000; la imagen no hace `chown` |
 | Una capa nueva no aparece | Falta recargar la configuración: `POST /rest/reset` |
 | Un mosaico temporal no anuncia sus fechas | El índice se construyó antes de que existieran sus `.properties` |
 

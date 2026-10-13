@@ -41,19 +41,18 @@ make deploy             # producción: sincroniza el repo, reconstruye y levanta
 ```
 
 El contenedor escucha en el 8080; qué interfaz y qué puerto se publican en el host sale de
-`GEOSERVER_BIND_ADDR` y `GEOSERVER_PORT`. El `.env.example` documenta las 46 variables, y el
+`GEOSERVER_BIND_ADDR` y `GEOSERVER_PORT`. El `.env.example` documenta las 45 variables, y el
 compose falla si falta alguna. Las que casi siempre se tocan:
 
 | Variable | Para qué |
 |---|---|
 | `GEOSERVER_ADMIN_USER` · `GEOSERVER_ADMIN_PASSWORD` | Credenciales del administrador |
-| `RESET_ADMIN_CREDENTIALS` | Reescribe esas credenciales en cada arranque |
 | `GEOSERVER_CONTEXT_ROOT` | Prefijo de la ruta pública |
 | `GEOSERVER_BIND_ADDR` · `GEOSERVER_PORT` | Dónde se publica en el host |
 | `GEOSERVER_DATA_DIR` · `GWC_CACHE_HOST_DIR` | Dónde viven los datos y el caché de teselas |
 | `POSTGIS_*` | Conexión a la base de datos |
 | `INITIAL_MEMORY` · `MAXIMUM_MEMORY` | Memoria de la JVM |
-| `STABLE_EXTENSIONS` | Extensiones a activar; ya vienen en la imagen |
+| `ADDITIONAL_JAVA_STARTUP_OPTIONS` | Opciones extra de la JVM; van al final y ganan |
 | `GS_CONTROLFLOW_*` | Límites de peticiones concurrentes |
 | `DOCKER_GID` | Grupo `docker` del host |
 
@@ -67,7 +66,7 @@ otro nombre. Los `$$` son el escape de Compose. Cada nombre por el que se entre 
 
 | Contenedor | Qué hace |
 |---|---|
-| `sextante` | GeoServer 3.0.0 sobre Tomcat 11 y Java 21 |
+| `sextante` | GeoServer 3.0.0 sobre Tomcat 11 y Java 21, imagen [`ghcr.io/ghegar/sacbe`](https://github.com/GHEgar/sacbe) |
 | `sextante-docker-socket-proxy` | Acceso acotado y sin root al socket de Docker |
 | `sextante-version-api` | Expone la versión desplegada y el estado del nodo |
 

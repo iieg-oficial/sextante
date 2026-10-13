@@ -7,6 +7,22 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+### Cambiado: GeoServer corre sobre sacbe en lugar de kartoza
+
+- La imagen pasa de `kartoza/geoserver:3.0.0` a `ghcr.io/ghegar/sacbe:3.0.0-1`: mismo GeoServer 3.0.0, mismo Tomcat 11.0.24 y mismo data_dir, sin migración. Pesa 993 MB en lugar de 3.58 GB y corre como uid 2000 desde el build, así que el arranque ya no hace el `chown` recursivo: con el data_dir de producción baja de 8-16 min a unos 15 s.
+- Extensiones: control-flow, wps, vectortiles, geopkg-output y libjpeg-turbo, más el core. Salen wps-download, monitor, gdal, CSW, INSPIRE, sec-jdbc, sec-ldap y la demo web, que no tenían consumidor. KML sigue, como dependencia de WPS. Los archivos que dejan en el data_dir (`download.properties`, `monitoring/`, `csw*`, `inspire/`) no se borran, para que volver a kartoza siga funcionando.
+- Las plantillas y los XML que copiaba el wrapper pasan a `config/overlay/`, como espejo del data_dir: la imagen copia el árbol en cada arranque y renderiza los `*.tmpl` con `envsubst`. Fuentes y overlay se montan `:ro` en `/etc/geoserver/`, sin el riesgo de crashloop.
+- El `.env` conserva sus nombres; el compose los traduce a los de la imagen (`GEOSERVER_CONTEXT_ROOT` → `GEOSERVER_CONTEXT`, `INITIAL_MEMORY`/`MAXIMUM_MEMORY` → `JAVA_MIN_MEM`/`JAVA_MAX_MEM`, `ADDITIONAL_JAVA_STARTUP_OPTIONS` → `JAVA_EXTRA_OPTS`, `HTTP_SCHEME`/`TOMCAT_SECURE` → `PROXY_SCHEME`/`PROXY_SECURE`). `PROXY_HOST` y `PROXY_PORT` pasan a ser obligatorias en el compose.
+- `GEOSERVER_CSRF_WHITELIST` empieza a aplicar: kartoza leía `CSRF_WHITELIST` y pasaba la propiedad vacía, que le ganaba a la variable.
+- `scripts/reset-admin.sh` usa `geoserver-reset-admin` de la imagen, sin los scripts internos de kartoza ni python en el contenedor.
+- `scripts/init-terreno-rgb-layer.sh` corre GDAL en un contenedor efímero `ghcr.io/osgeo/gdal:ubuntu-small-3.12.2` (fijado por digest) con `--volumes-from sextante` y uid 2000, en lugar de dentro de GeoServer.
+- `make up` y `make deploy` crean `geoserver_data` y el blobstore de GWC con dueño 2000 si no existen (`ensure_data_dirs`).
+
+### Eliminado
+
+- `scripts/entrypoint-wrapper.sh`, `server.xml.template` (el connector lo arma la imagen con los mismos atributos), `STABLE_EXTENSIONS` y `RESET_ADMIN_CREDENTIALS`.
+- La lectura del audit del monitor en `init-gwc-filters.sh --learn`: el audit estaba apagado y la fuente útil siempre fue el log del gateway.
+
 ## [2.14.0] - 2026-10-06
 
 ### Agregado

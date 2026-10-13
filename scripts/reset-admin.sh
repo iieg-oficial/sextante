@@ -13,61 +13,7 @@ fi
 CONTAINER="${CONTAINER:-sextante}"
 
 echo "Reseteando credenciales admin en GeoServer..."
-docker exec "$CONTAINER" bash -c '
-  set -e
-
-  if [ -d /scripts/lib ]; then
-    source /scripts/lib/env-data.sh
-    source /scripts/lib/utils.sh
-    source /scripts/lib/geoserver.sh
-  else
-    source /scripts/env-data.sh
-    source /scripts/functions.sh
-  fi
-
-  GEOSERVER_INSTALL_DIR="$(detect_install_dir)"
-  USERS_XML=${GEOSERVER_DATA_DIR}/security/usergroup/default/users.xml
-  ROLES_XML=${GEOSERVER_DATA_DIR}/security/role/default/roles.xml
-  CLASSPATH=${GEOSERVER_INSTALL_DIR}/webapps/${GEOSERVER_CONTEXT_ROOT}/WEB-INF/lib/
-
-  export PWD_HASH=$(make_hash "$GEOSERVER_ADMIN_PASSWORD" "$CLASSPATH" "$HASHING_ALGORITHM")
-  if [ "${#PWD_HASH}" -le 12 ]; then
-    echo "✗ El hash salio vacio; no se toca users.xml." >&2
-    exit 1
-  fi
-
-  ESCAPED_USER=$(printf "%s\n" "$GEOSERVER_ADMIN_USER" | sed "s/[&/\\\\]/\\\\&/g")
-  ESCAPED_HASH=$(printf "%s\n" "$PWD_HASH" | sed "s/[&/\\\\]/\\\\&/g")
-
-  sed -i "0,/<user /{s/name=\"[^\"]*\"/name=\"${ESCAPED_USER}\"/; s/password=\"[^\"]*\"/password=\"${ESCAPED_HASH}\"/}" "$USERS_XML"
-
-  python3 -c "
-import xml.etree.ElementTree as ET
-ET.register_namespace(\"\", \"http://www.geoserver.org/security/users\")
-tree = ET.parse(\"$USERS_XML\")
-root = tree.getroot()
-ns = \"http://www.geoserver.org/security/users\"
-users_el = root.find(\"{%s}users\" % ns)
-seen = {}
-to_remove = []
-for u in users_el.findall(\"{%s}user\" % ns):
-    name = u.get(\"name\")
-    if name in seen:
-        to_remove.append(seen[name])
-    seen[name] = u
-for u in to_remove:
-    users_el.remove(u)
-if to_remove:
-    tree.write(\"$USERS_XML\", xml_declaration=True, encoding=\"UTF-8\", short_empty_elements=False)
-    print(\"Duplicados eliminados:\", len(to_remove))
-"
-
-  if [ -f "$ROLES_XML" ]; then
-    sed -i "s/username=\"[^\"]*\"/username=\"${ESCAPED_USER}\"/g" "$ROLES_XML"
-  fi
-
-  echo "Admin actualizado a: $GEOSERVER_ADMIN_USER"
-'
+docker exec "$CONTAINER" geoserver-reset-admin
 
 echo "Reiniciando GeoServer para aplicar cambios..."
 docker restart "$CONTAINER"
