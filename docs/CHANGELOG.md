@@ -20,8 +20,12 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 - `make backup` y `make restore` usan `geoserver-backup` y `geoserver-restore` de sacbe (imagen `3.0.1-2`). El respaldo sale en un solo paso, sin `.backup_staging` ni pasar dos veces por disco, y conserva los dueños; el restore corre en un contenedor de un solo uso con el servicio abajo, deja todo como uid 2000 sin `chown` y respeta `gwc/` y `heapdumps/`. Los respaldos viejos, con `data_dir/` al frente y dueño del host, se siguen restaurando.
 
+- El control-flow se queda con los límites globales (`timeout`, `ows.global`, `ows.wms.getmap`, `ows.wfs.getfeature.application/msexcel` y `ows.gwc`). Las reglas por usuario identifican por la cookie `GS_FLOW_CONTROL` y las de IP por `X-Forwarded-For`; detrás del WAF todo llega con una sola IP y el caché del gateway repartía la misma cookie a todos, así que ambas contaban a todos los visores como uno solo y frenaban a todos juntos (los 429 de `user.ows.wms.getmap` en `runbook/capas-y-tiles.md`). La defensa por cliente queda en el WAF.
+- `.env.example` recomienda para producción `INITIAL_MEMORY=2G`, `MAXIMUM_MEMORY=8G` y `-XX:MaxMetaspaceSize=1g -XX:+UseStringDeduplication`, sin fijar hilos de GC ni generación joven: la imagen trae G1 y lo dimensiona solo.
+
 ### Eliminado
 
+- `GS_CONTROLFLOW_USER`, `GS_CONTROLFLOW_USER_WPS_EXECUTE`, `GS_CONTROLFLOW_USER_WMS_GETMAP` y `GS_CONTROLFLOW_IP` del compose, del `.env.example` y de la plantilla del control-flow.
 - `scripts/entrypoint-wrapper.sh`, `server.xml.template` (el connector lo arma la imagen con los mismos atributos), `STABLE_EXTENSIONS` y `RESET_ADMIN_CREDENTIALS`.
 - La lectura del audit del monitor en `init-gwc-filters.sh --learn`: el audit estaba apagado y la fuente útil siempre fue el log del gateway.
 

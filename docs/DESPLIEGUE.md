@@ -144,9 +144,13 @@ Entrando directo al puerto, sin proxy, esas cabeceras no existen: para eso está
 
 ## 7. Límites de carga
 
-`GS_CONTROLFLOW_*` limita peticiones concurrentes por tipo y por usuario. Sin eso, un cliente que
-pide muchos tiles a la vez satura la JVM y tumba el servicio para todos. El `.env.example` trae
-valores de partida.
+`GS_CONTROLFLOW_*` limita las peticiones concurrentes por tipo (global, GetMap, teselas, Excel). Sin
+eso, una ráfaga de tiles satura la JVM y tumba el servicio para todos. El `.env.example` trae valores
+de partida.
+
+No hay límites por usuario ni por IP: GeoServer identifica al usuario por cookie y a la IP por
+`X-Forwarded-For`, y detrás de un WAF o de un caché compartido todos los clientes parecen el mismo.
+El límite por cliente va en el WAF o en el proxy.
 
 ## 8. Respaldos
 
