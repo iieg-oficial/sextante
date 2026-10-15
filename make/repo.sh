@@ -106,6 +106,14 @@ clean_data_dir() {
     row 'Data dir' 'eliminado' "$C_GREEN" 'geoserver_data/'
 }
 
+backup_data_dir() {
+    docker exec sextante geoserver-backup > "$1"
+}
+
+restore_data_dir() {
+    dc prod run --rm -T --no-deps --entrypoint geoserver-restore sextante < "$1"
+}
+
 pick_backup() {
     local -a files
     mapfile -t files < <(ls -1t restore/geoserver_data_*.tar.gz "$BACKUP_DIR"/geoserver_data_*.tar.gz 2>/dev/null)
