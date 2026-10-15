@@ -5,7 +5,7 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
-## [No publicado]
+## [2.15.0] - 2026-10-15
 
 ### Cambiado: GeoServer corre sobre sacbe en lugar de kartoza
 
