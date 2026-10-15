@@ -5,7 +5,29 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
-## [No publicado]
+## [2.15.0] - 2026-10-15
+
+### Cambiado: GeoServer corre sobre sacbe en lugar de kartoza
+
+- La imagen pasa de `kartoza/geoserver:3.0.0` a `ghcr.io/ghegar/sacbe:3.0.1-2`: GeoServer 3.0.1 y Tomcat 11.0.27 con el mismo data_dir, sin migración. El parche cierra cuatro CVE CRITICAL que kartoza 3.0.0 trae, entre ellas una inyección SQL sin autenticar en el datastore PostGIS (CVE-2026-76904) y dos bypass de autenticación de Tomcat. Pesa 993 MB en lugar de 3.58 GB y corre como uid 2000 desde el build, así que el arranque ya no hace el `chown` recursivo: con el data_dir de producción baja de 8-16 min a unos 15 s.
+- Extensiones: control-flow, wps, vectortiles, geopkg-output y libjpeg-turbo, más el core. Salen wps-download, monitor, gdal, CSW, INSPIRE, sec-jdbc y sec-ldap, que no tenían consumidor. KML sigue, como dependencia de WPS. Los archivos que dejan en el data_dir (`download.properties`, `monitoring/`, `csw*`, `inspire/`) no se borran, para que volver a kartoza siga funcionando.
+- Las plantillas y los XML que copiaba el wrapper pasan a `config/overlay/`, como espejo del data_dir: la imagen copia el árbol en cada arranque y renderiza los `*.tmpl` con `envsubst`. Fuentes y overlay se montan `:ro` en `/etc/geoserver/`, sin el riesgo de crashloop.
+- El `.env` conserva sus nombres; el compose los traduce a los de la imagen (`GEOSERVER_CONTEXT_ROOT` → `GEOSERVER_CONTEXT`, `INITIAL_MEMORY`/`MAXIMUM_MEMORY` → `JAVA_MIN_MEM`/`JAVA_MAX_MEM`, `ADDITIONAL_JAVA_STARTUP_OPTIONS` → `JAVA_EXTRA_OPTS`, `HTTP_SCHEME`/`TOMCAT_SECURE` → `PROXY_SCHEME`/`PROXY_SECURE`). `PROXY_HOST` y `PROXY_PORT` pasan a ser obligatorias en el compose.
+- `GEOSERVER_CSRF_WHITELIST` empieza a aplicar: kartoza leía `CSRF_WHITELIST` y pasaba la propiedad vacía, que le ganaba a la variable.
+- `scripts/reset-admin.sh` usa `geoserver-reset-admin` de la imagen, sin los scripts internos de kartoza ni python en el contenedor.
+- `scripts/init-terreno-rgb-layer.sh` corre GDAL en un contenedor efímero `ghcr.io/osgeo/gdal:ubuntu-small-3.12.2` (fijado por digest) con `--volumes-from sextante` y uid 2000, en lugar de dentro de GeoServer.
+- `make up` y `make deploy` crean `geoserver_data` y el blobstore de GWC con dueño 2000 si no existen (`ensure_data_dirs`).
+
+- `make backup` y `make restore` usan `geoserver-backup` y `geoserver-restore` de sacbe (imagen `3.0.1-2`). El respaldo sale en un solo paso, sin `.backup_staging` ni pasar dos veces por disco, y conserva los dueños; el restore corre en un contenedor de un solo uso con el servicio abajo, deja todo como uid 2000 sin `chown` y respeta `gwc/` y `heapdumps/`. Los respaldos viejos, con `data_dir/` al frente y dueño del host, se siguen restaurando.
+
+- El control-flow se queda con los límites globales (`timeout`, `ows.global`, `ows.wms.getmap`, `ows.wfs.getfeature.application/msexcel` y `ows.gwc`). Las reglas por usuario identifican por la cookie `GS_FLOW_CONTROL` y las de IP por `X-Forwarded-For`; detrás del WAF todo llega con una sola IP y el caché del gateway repartía la misma cookie a todos, así que ambas contaban a todos los visores como uno solo y frenaban a todos juntos (los 429 de `user.ows.wms.getmap` en `runbook/capas-y-tiles.md`). La defensa por cliente queda en el WAF.
+- `.env.example` recomienda para producción `INITIAL_MEMORY=2G`, `MAXIMUM_MEMORY=8G` y `-XX:MaxMetaspaceSize=1g -XX:+UseStringDeduplication`, sin fijar hilos de GC ni generación joven: la imagen trae G1 y lo dimensiona solo.
+
+### Eliminado
+
+- `GS_CONTROLFLOW_USER`, `GS_CONTROLFLOW_USER_WPS_EXECUTE`, `GS_CONTROLFLOW_USER_WMS_GETMAP` y `GS_CONTROLFLOW_IP` del compose, del `.env.example` y de la plantilla del control-flow.
+- `scripts/entrypoint-wrapper.sh`, `server.xml.template` (el connector lo arma la imagen con los mismos atributos), `STABLE_EXTENSIONS` y `RESET_ADMIN_CREDENTIALS`.
+- La lectura del audit del monitor en `init-gwc-filters.sh --learn`: el audit estaba apagado y la fuente útil siempre fue el log del gateway.
 
 ## [2.14.0] - 2026-10-06
 

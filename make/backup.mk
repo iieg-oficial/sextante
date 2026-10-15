@@ -2,7 +2,7 @@
 
 ##@ Respaldos
 
-backup: ## Respaldar geoserver_data y plugins en backups/
+backup: ## Respaldar geoserver_data en backups/ (sin gwc ni heapdumps)
 	@$(LIB)
 	banner 'BACKUP'
 	umask 077
@@ -10,11 +10,7 @@ backup: ## Respaldar geoserver_data y plugins en backups/
 	chmod 700 $(BACKUP_DIR)
 	file=$(BACKUP_DIR)/geoserver_data_$$(date +%Y%m%d_%H%M%S).tar.gz
 	docker exec -u root sextante find /opt/geoserver/data_dir \( -name 'global.xml.*.tmp' -o -name 'wfs.xml.*.tmp' -o -name 'wms.xml.*.tmp' \) -delete 2>/dev/null || true
-	docker run --rm -v $(CURDIR):/data alpine rm -rf /data/.backup_staging
-	mkdir -p .backup_staging
-	run_step 'Extraer' bash -c 'docker exec -u root sextante tar -cf - --exclude=data_dir/gwc --exclude=data_dir/heapdumps -C /opt/geoserver data_dir | tar -xf - -C .backup_staging'
-	run_step 'Comprimir' tar -czf "$$file" -C .backup_staging data_dir
-	docker run --rm -v $(CURDIR):/data alpine rm -rf /data/.backup_staging
+	run_step 'Respaldar' backup_data_dir "$$file"
 	rule
 	printf '  %sBackup%s  %s (%s)\n\n' "$$C_GREEN" "$$C_RESET" "$$file" "$$(du -h "$$file" | cut -f1)"
 
@@ -35,13 +31,12 @@ restore: ## Restaurar un respaldo, con selector
 	banner 'RESTORE'
 	file=$$(pick_backup)
 	row 'Archivo' "$$(du -h "$$file" | cut -f1)" "$$C_GREEN" "$$file"
-	confirm 'Esto reemplaza geoserver_data/ por completo.' 'restaurar'
+	confirm 'Esto reemplaza geoserver_data/ (conserva gwc/ y heapdumps/).' 'restaurar'
 	rule
 	run_step 'Down' dc prod down
-	docker run --rm -v $(CURDIR):/data alpine rm -rf /data/geoserver_data /data/plugins
-	run_step 'Extraer' tar -xzf "$$file" data_dir
-	mv data_dir geoserver_data
 	ensure_network
+	ensure_data_dirs
+	run_step 'Restaurar' restore_data_dir "$$file"
 	run_step 'Up' dc prod up -d
 	run_step 'Esperar' wait_geoserver
 	run_step 'Admin' bash scripts/reset-admin.sh

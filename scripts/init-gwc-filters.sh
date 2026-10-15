@@ -15,7 +15,6 @@ source "$SCRIPT_DIR/lib/gs_curl.sh"
 ENV_VALUES="geom:geom_iieg,geom:geom_inegi"
 ENV_DEFAULT="geom:geom_iieg"
 GATEWAY_CONTAINER="${GATEWAY_CONTAINER:-gateway-hub-nginx-1}"
-SEXTANTE_CONTAINER="${SEXTANTE_CONTAINER:-sextante}"
 LEARN_TAIL="${LEARN_TAIL:-20000}"
 FILTERS_FILE="${FILTERS_FILE:-$PROJECT_DIR/config/gwc-filters.txt}"
 
@@ -38,11 +37,8 @@ envuelve el filtro de fecha en parentesis -- "(fecha >= '2025-01-01' AND fecha <
 '2026-01-01')" -- y combina varios con ' OR '. Declararlo a mano casi siempre
 falla; para eso esta --learn.
 
---learn saca los valores del trafico real, en este orden:
-  1. log del gateway, que ya registra el request_uri completo
-  2. audit del monitor de GeoServer, si se activa a mano en la UI (Monitor ->
-     configuracion): montarlo por archivo no sirve, GeoServer lo reescribe al
-     arrancar
+--learn saca los valores del trafico real del log del gateway, que ya registra
+el request_uri completo.
 
 Sin argumentos extra aprende todas las capas que encuentre; con argumentos se
 limita a esas. Un valor de CQL no declarado se sigue sirviendo (HTTP 200), solo
@@ -58,7 +54,7 @@ GeoServer (geoserver_data/gwc-layers/), que es per-host, asi que aplicarlos a
 mano por REST no llega a produccion. `make up` y `make deploy` corren este
 script.
 
-Variables: GATEWAY_CONTAINER, SEXTANTE_CONTAINER, LEARN_TAIL, FILTERS_FILE.
+Variables: GATEWAY_CONTAINER, LEARN_TAIL, FILTERS_FILE.
 
 Ejemplos:
   init-gwc-filters.sh general:cuerpos_de_agua_50k
@@ -119,18 +115,10 @@ learn_entries() {
   fi
 
   if [ -z "$raw" ]; then
-    echo "Sin datos en el gateway; probando el audit del monitor de GeoServer..." >&2
-    raw=$(docker exec -u root "$SEXTANTE_CONTAINER" \
-      sh -c 'cat /opt/geoserver/data_dir/monitoring/*.log 2>/dev/null' 2>/dev/null | grep -F "CQL_FILTER" || true)
-  fi
-
-  if [ -z "$raw" ]; then
     cat >&2 <<'EOF'
 No se encontro ninguna peticion con CQL_FILTER.
 
   - El log del gateway solo conserva lo que siga en el buffer de Docker.
-  - El audit del monitor hay que activarlo desde la UI de GeoServer; el archivo
-    monitor.properties lo reescribe GeoServer en cada arranque.
 
 Navega el visor con las capas que quieras cachear y reintenta.
 EOF
