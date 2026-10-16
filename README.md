@@ -41,7 +41,7 @@ make deploy             # producción: sincroniza el repo, reconstruye y levanta
 ```
 
 El contenedor escucha en el 8080; qué interfaz y qué puerto se publican en el host sale de
-`GEOSERVER_BIND_ADDR` y `GEOSERVER_PORT`. El `.env.example` documenta las 47 variables, y el
+`GEOSERVER_BIND_ADDR` y `GEOSERVER_PORT`. El `.env.example` documenta las 48 variables, y el
 compose falla si falta alguna. Las que casi siempre se tocan:
 
 | Variable | Para qué |
