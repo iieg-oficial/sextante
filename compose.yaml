@@ -16,7 +16,7 @@ x-host-gateway: &host-gateway
 
 services:
   sextante:
-    image: ghcr.io/ghegar/sacbe:3.0.1-2
+    image: ghcr.io/ghegar/sacbe:3.0.1-3
     container_name: sextante
     restart: unless-stopped
     ports:

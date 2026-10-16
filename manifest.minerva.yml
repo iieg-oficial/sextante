@@ -1,0 +1,17 @@
+application:
+  code: sextante
+  name: Sextante
+  description: GeoServer del IIEG. Iniciar sesion da acceso a la interfaz de administracion segun el rol
+  homepage_url: ${SITIO}/sextante/web/
+  redirect_uris:
+    - ${SITIO}/sextante/web/login/oauth2/code/minerva__oidc
+
+permissions:
+  - key: sextante.geoserver.admin
+    name: Administrar todo GeoServer (capas, estilos, stores, seguridad)
+
+roles:
+  - name: Administrador
+    description: Acceso total a la interfaz de GeoServer. Se mapea a ROLE_ADMINISTRATOR
+    permissions:
+      - sextante.geoserver.admin
