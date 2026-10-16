@@ -25,6 +25,7 @@ fi
 : "${OIDC_PUBLIC_URL:?falta OIDC_PUBLIC_URL (issuer que ve el navegador)}"
 : "${OIDC_INTERNAL_URL:?falta OIDC_INTERNAL_URL (canal backend para token y JWKS)}"
 ROLES="${OIDC_ROLE_MAP:-sextante.administrador=ROLE_ADMINISTRATOR}"
+SOLO="${OIDC_SOLO:-false}"
 
 xml_escape() {
   printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
@@ -94,5 +95,52 @@ agregar_a_cadena() {
   echo "  cadena $nombre: $FILTRO antes de $antes_de"
 }
 
+formulario() {
+  local quiere=$1 web nueva login code
+  web=$(gs_curl -s "$SEC/filterchain/web.xml")
+  if [ "$quiere" = "false" ] && printf '%s' "$web" | grep -q "<filter>form</filter>"; then
+    nueva=$(printf '%s\n' "$web" | sed '/<filter>form<\/filter>/d')
+  elif [ "$quiere" = "true" ] && ! printf '%s' "$web" | grep -q "<filter>form</filter>"; then
+    nueva=$(printf '%s\n' "$web" | sed "0,/<filter>$FILTRO<\/filter>/s##<filter>form</filter>\n    <filter>$FILTRO</filter>#")
+  fi
+  if [ -n "${nueva:-}" ]; then
+    code=$(printf '%s' "$nueva" | gs_curl -s -o /dev/null -w "%{http_code}" -X PUT \
+      -H "Content-Type: application/xml" --data-binary @- "$SEC/filterchain/web")
+    [ "$code" = "200" ] || { echo "✗ No se pudo cambiar el formulario en la cadena web (HTTP $code)" >&2; return 1; }
+  fi
+  login=$(gs_curl -s "$SEC/filterchain/webLogin.xml")
+  if [ "$quiere" = "false" ]; then
+    nueva=$(printf '%s' "$login" | sed 's/disabled="false"/disabled="true"/')
+  else
+    nueva=$(printf '%s' "$login" | sed 's/disabled="true"/disabled="false"/')
+  fi
+  if [ "$nueva" != "$login" ]; then
+    code=$(printf '%s' "$nueva" | gs_curl -s -o /dev/null -w "%{http_code}" -X PUT \
+      -H "Content-Type: application/xml" --data-binary @- "$SEC/filterchain/webLogin")
+    [ "$code" = "200" ] || { echo "✗ No se pudo cambiar la cadena webLogin (HTTP $code)" >&2; return 1; }
+  fi
+  if [ "$quiere" = "false" ]; then
+    echo "  formulario de usuario y contraseña: apagado (solo minerva)"
+  else
+    echo "  formulario de usuario y contraseña: encendido"
+  fi
+}
+
+usuarios_locales() {
+  local extra
+  extra=$(gs_curl -s "$GEOSERVER_URL/rest/security/usergroup/users.json" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(u["userName"] for u in d.get("users", []) if u["userName"] != sys.argv[1]))' \
+      "${GEOSERVER_ADMIN_USER:-}" 2>/dev/null)
+  if [ -n "$extra" ]; then
+    echo "  ! usuarios locales además del admin: $extra (los accesos se dan con roles de minerva)"
+  fi
+}
+
 agregar_a_cadena web anonymous || exit 1
 agregar_a_cadena rest basic || exit 1
+if [ "$SOLO" = "true" ]; then
+  formulario false || exit 1
+else
+  formulario true || exit 1
+fi
+usuarios_locales
