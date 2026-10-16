@@ -9,9 +9,16 @@ application:
 permissions:
   - key: sextante.geoserver.admin
     name: Administrar todo GeoServer (capas, estilos, stores, seguridad)
+  - key: sextante.privadas.view
+    name: Leer las capas privadas de mapalab
 
 roles:
   - name: Administrador
     description: Acceso total a la interfaz de GeoServer. Se mapea a ROLE_ADMINISTRATOR
     permissions:
       - sextante.geoserver.admin
+
+  - name: Lector de capas privadas
+    description: Lee las capas marcadas como privadas (rol MAPALAB_PRIVADA de GeoServer). Para la cuenta de servicio de mapalab
+    permissions:
+      - sextante.privadas.view
