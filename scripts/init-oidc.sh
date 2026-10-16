@@ -73,20 +73,26 @@ if [ "$code" != "200" ] && [ "$code" != "201" ]; then
 fi
 echo "  filtro $FILTRO: $metodo $code"
 
-cadena=$(gs_curl -s "$SEC/filterchain/web.xml")
-if [ -z "$cadena" ]; then
-  echo "✗ No se pudo leer la cadena web" >&2
-  exit 1
-fi
-if printf '%s' "$cadena" | grep -q "<filter>$FILTRO</filter>"; then
-  echo "  cadena web: ya tiene $FILTRO"
-  exit 0
-fi
-nueva=$(printf '%s\n' "$cadena" | sed "s#<filter>anonymous</filter>#<filter>$FILTRO</filter>\n    <filter>anonymous</filter>#")
-code=$(printf '%s' "$nueva" | gs_curl -s -o /dev/null -w "%{http_code}" -X PUT \
-  -H "Content-Type: application/xml" --data-binary @- "$SEC/filterchain/web")
-if [ "$code" != "200" ]; then
-  echo "✗ No se pudo agregar $FILTRO a la cadena web (HTTP $code)" >&2
-  exit 1
-fi
-echo "  cadena web: $FILTRO antes de anonymous"
+agregar_a_cadena() {
+  local nombre=$1 antes_de=$2 cadena nueva code
+  cadena=$(gs_curl -s "$SEC/filterchain/$nombre.xml")
+  if ! printf '%s' "$cadena" | grep -q "<filter>$antes_de</filter>"; then
+    echo "✗ No se pudo leer la cadena $nombre o no tiene $antes_de" >&2
+    return 1
+  fi
+  if printf '%s' "$cadena" | grep -q "<filter>$FILTRO</filter>"; then
+    echo "  cadena $nombre: ya tiene $FILTRO"
+    return 0
+  fi
+  nueva=$(printf '%s\n' "$cadena" | sed "0,/<filter>$antes_de<\/filter>/s##<filter>$FILTRO</filter>\n    <filter>$antes_de</filter>#")
+  code=$(printf '%s' "$nueva" | gs_curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/xml" --data-binary @- "$SEC/filterchain/$nombre")
+  if [ "$code" != "200" ]; then
+    echo "✗ No se pudo agregar $FILTRO a la cadena $nombre (HTTP $code)" >&2
+    return 1
+  fi
+  echo "  cadena $nombre: $FILTRO antes de $antes_de"
+}
+
+agregar_a_cadena web anonymous || exit 1
+agregar_a_cadena rest basic || exit 1

@@ -9,7 +9,7 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ### Agregado
 
-- Inicio de sesión en la interfaz de GeoServer con minerva (OIDC). `scripts/init-oidc.sh`, primer paso del post-up, crea por REST el filtro `minerva` (authorization code con PKCE; token, JWKS y userinfo por el canal interno de minerva) y lo agrega a la cadena `web` antes de `anonymous`. El formulario de usuario y contraseña sigue para el admin local. Sin `OIDC_CLIENT_ID` no hace nada.
+- Inicio de sesión en la interfaz de GeoServer con minerva (OIDC). `scripts/init-oidc.sh`, primer paso del post-up, crea por REST el filtro `minerva` (authorization code con PKCE; token, JWKS y userinfo por el canal interno de minerva) y lo agrega a la cadena `web` antes de `anonymous` y a la `rest` antes de `basic`, para que la REST acepte bearer tokens de minerva (cuentas de servicio con `client_credentials`) además de basic auth. El formulario de usuario y contraseña sigue para el admin local. Sin `OIDC_CLIENT_ID` no hace nada.
 - `manifest.minerva.yml` con la aplicación `sextante` y el rol `Administrador` (`sextante.administrador` → `ROLE_ADMINISTRATOR`). Los roles por workspace (`sextante.editor-<ws>`, `sextante.lector-<ws>`) pasan tal cual y se usan en reglas como `<ws>.*.a=sextante.editor-<ws>`.
 - Imagen `ghcr.io/ghegar/sacbe:3.0.1-3`, que trae la extensión `sec-oidc`.
 
