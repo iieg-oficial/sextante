@@ -139,6 +139,7 @@ usuarios_locales() {
 agregar_a_cadena web anonymous || exit 1
 agregar_a_cadena rest basic || exit 1
 agregar_a_cadena default basic || exit 1
+agregar_a_cadena gwc basic || exit 1
 if [ "$SOLO" = "true" ]; then
   formulario false || exit 1
 else
