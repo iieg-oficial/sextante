@@ -16,7 +16,7 @@ x-host-gateway: &host-gateway
 
 services:
   sextante:
-    image: ghcr.io/ghegar/sacbe:3.0.1-3
+    image: ghcr.io/ghegar/sacbe:3.0.1-4
     container_name: sextante
     restart: unless-stopped
     ports:
@@ -55,6 +55,7 @@ services:
       - ${GWC_CACHE_HOST_DIR:?}:${GEOWEBCACHE_CACHE_DIR:?}
       - ./config/overlay:/etc/geoserver/overlay:ro
       - ./fonts:/etc/geoserver/fonts:ro
+      - ./config/classes:/etc/geoserver/classes:ro
     healthcheck:
       <<: *healthcheck
       test: ["CMD-SHELL", "curl -fsI http://localhost:8080/${GEOSERVER_CONTEXT_ROOT:?}/web/ >/dev/null || exit 1"]
