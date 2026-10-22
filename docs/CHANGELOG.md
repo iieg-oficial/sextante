@@ -18,7 +18,11 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ### Cambiado
 
-- Imagen `ghcr.io/ghegar/sacbe:3.0.2-1`: GeoServer 3.0.2 sin cambio de data_dir. Cierra las cuatro CVE CRITICAL que la 3.0.1 traía en el WAR (spring-webmvc, freemarker y bouncycastle) y la imagen parcha httpcore5-h2 y httpclient5; Trivy no encuentra ninguna vulnerabilidad con arreglo.
+- Imagen `ghcr.io/ghegar/sacbe:3.0.2-2`: GeoServer 3.0.2 sin cambio de data_dir. Cierra las cuatro CVE CRITICAL que la 3.0.1 traía en el WAR (spring-webmvc, freemarker y bouncycastle) y la imagen parcha httpcore5-h2 y httpclient5; Trivy no encuentra ninguna vulnerabilidad con arreglo.
+
+### Corregido
+
+- El botón «entrar con minerva» respondía 500 y `init-oidc.sh` no podía guardar el filtro (HTTP 400, «Syntax error in Redirect URI»): `sec-oidc` armaba el `redirect_uri` con `GEOSERVER_PROXY_BASE_URL` sin expandir las cabeceras. sacbe 3.0.2-2 lo parcha y el `redirect_uri` sale del connector de Tomcat: `https://<PROXY_HOST>/sextante/web/login/oauth2/code/minerva__oidc`, que es el que debe estar registrado en minerva.
 
 ## [2.15.0] - 2026-10-15
 
