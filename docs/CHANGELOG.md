@@ -16,6 +16,10 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 - `manifest.minerva.yml` con la aplicación `sextante` y el rol `Administrador` (`sextante.administrador` → `ROLE_ADMINISTRATOR`). Los roles por workspace (`sextante.editor-<ws>`, `sextante.lector-<ws>`) pasan tal cual y se usan en reglas como `<ws>.*.a=sextante.editor-<ws>`.
 - Imagen `ghcr.io/ghegar/sacbe:3.0.1-4`, que trae la extensión `sec-oidc` y la capa del classpath. `config/classes/` se monta en `/etc/geoserver/classes` y reemplaza el ícono genérico de OpenID del botón por la «M» de minerva.
 
+### Cambiado
+
+- Imagen `ghcr.io/ghegar/sacbe:3.0.2-1`: GeoServer 3.0.2 sin cambio de data_dir. Cierra las cuatro CVE CRITICAL que la 3.0.1 traía en el WAR (spring-webmvc, freemarker y bouncycastle) y la imagen parcha httpcore5-h2 y httpclient5; Trivy no encuentra ninguna vulnerabilidad con arreglo.
+
 ## [2.15.0] - 2026-10-15
 
 ### Cambiado: GeoServer corre sobre sacbe en lugar de kartoza
