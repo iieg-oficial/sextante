@@ -39,6 +39,7 @@ datastore_payload() {
         {"@key": "port",     "\$": "$POSTGIS_PORT"},
         {"@key": "database", "\$": "$POSTGIS_DB"},
         {"@key": "schema",   "\$": "$SCHEMA"},
+        {"@key": "namespace", "\$": "$(gs_namespace_uri "$WORKSPACE")"},
         {"@key": "user",     "\$": "$POSTGIS_USER"},
         {"@key": "passwd",   "\$": $escaped_passwd},
         {"@key": "sslmode",  "\$": "$POSTGIS_SSLMODE"},
