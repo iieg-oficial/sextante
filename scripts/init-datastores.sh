@@ -49,6 +49,7 @@ json_escape() {
 build_datastore_payload() {
   local name=$1
   local schema=$2
+  local namespace=$3
   local escaped_passwd
   escaped_passwd=$(json_escape "$POSTGIS_PASSWORD")
   cat <<EOJSON
@@ -62,6 +63,7 @@ build_datastore_payload() {
         {"@key": "port",     "\$": "$POSTGIS_PORT"},
         {"@key": "database", "\$": "$POSTGIS_DB"},
         {"@key": "schema",   "\$": "$schema"},
+        {"@key": "namespace", "\$": "$namespace"},
         {"@key": "user",     "\$": "$POSTGIS_USER"},
         {"@key": "passwd",   "\$": $escaped_passwd},
         {"@key": "sslmode",  "\$": "$POSTGIS_SSLMODE"},
@@ -115,8 +117,16 @@ create_datastore() {
   local name=$2
   local schema=${3:-$name}
 
+  local namespace
+  namespace=$(gs_namespace_uri "$workspace")
+  if [ -z "$namespace" ]; then
+    echo "FAIL datastore '$workspace:$name': sin namespace para el workspace"
+    FAILED_DATASTORES+=("$workspace:$name")
+    return
+  fi
+
   local payload
-  payload=$(build_datastore_payload "$name" "$schema")
+  payload=$(build_datastore_payload "$name" "$schema" "$namespace")
 
   local http_code
   http_code=$(gs_curl -s --max-time 15 -o /dev/null -w "%{http_code}" \

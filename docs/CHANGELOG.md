@@ -22,6 +22,7 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ### Corregido
 
+- La página de edición de los datastores PostGIS ya no truena con `WicketRuntimeException` en `NamespacePanel`. `init-datastores.sh` (y los `init-*-layer.sh` que crean store) reescribían `connectionParameters` completos por PUT sin la entrada `namespace`, y GeoServer la perdía; ahora mandan la URI del namespace del workspace, que `gs_namespace_uri` lee por REST.
 - El botón «entrar con minerva» respondía 500 y `init-oidc.sh` no podía guardar el filtro (HTTP 400, «Syntax error in Redirect URI»): `sec-oidc` armaba el `redirect_uri` con `GEOSERVER_PROXY_BASE_URL` sin expandir las cabeceras. sacbe 3.0.2-2 lo parcha y el `redirect_uri` sale del connector de Tomcat: `https://<PROXY_HOST>/sextante/web/login/oauth2/code/minerva__oidc`, que es el que debe estar registrado en minerva.
 - `scripts/reset-admin.sh` renombraba a otro usuario: `geoserver-reset-admin` de sacbe reescribía el primer `<user>` de `users.xml` sin mirar el nombre, y en producción dejó dos `dsi` con contraseñas distintas. sacbe 3.0.2-3 busca al admin por nombre y no toca a nadie más.
 

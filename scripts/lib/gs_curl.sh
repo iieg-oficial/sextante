@@ -41,3 +41,8 @@ gs_curl() {
         curl -K <(printf 'user = "%s"\n' "$(gs_escapar "$cred")") "$@"
     fi
 }
+
+gs_namespace_uri() {
+    gs_curl -s --max-time 15 "$GEOSERVER_URL/rest/namespaces/$1.json" \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["namespace"]["uri"], end="")' 2>/dev/null
+}
