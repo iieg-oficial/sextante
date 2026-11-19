@@ -5,6 +5,12 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.16.1] - 2026-11-19
+
+### Cambiado
+
+- `make backup` deja fuera las ortofotos: `BACKUP_EXCLUDE` (`gwc heapdumps ortofotos orto`) va fijo en `compose.yaml`, y `make restore` conserva esas carpetas en lugar de borrarlas. El backup toma el valor del contenedor, así que aplica después de recrearlo.
+
 ## [2.16.0] - 2026-10-30
 
 ### Agregado
