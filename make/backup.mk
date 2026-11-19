@@ -2,7 +2,7 @@
 
 ##@ Respaldos
 
-backup: ## Respaldar geoserver_data en backups/ (sin gwc ni heapdumps)
+backup: ## Respaldar geoserver_data en backups/ (sin gwc, heapdumps ni ortofotos)
 	@$(LIB)
 	banner 'BACKUP'
 	umask 077
@@ -31,7 +31,7 @@ restore: ## Restaurar un respaldo, con selector
 	banner 'RESTORE'
 	file=$$(pick_backup)
 	row 'Archivo' "$$(du -h "$$file" | cut -f1)" "$$C_GREEN" "$$file"
-	confirm 'Esto reemplaza geoserver_data/ (conserva gwc/ y heapdumps/).' 'restaurar'
+	confirm 'Esto reemplaza geoserver_data/ (conserva gwc/, heapdumps/ y ortofotos).' 'restaurar'
 	rule
 	run_step 'Down' dc prod down
 	ensure_network
