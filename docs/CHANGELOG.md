@@ -5,6 +5,12 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.16.2] - 2026-11-20
+
+### Corregido
+
+- `make backup` seguía metiendo las ortofotos: viven en `geoserver-raster/ortofotos` y `BACKUP_EXCLUDE` solo excluía carpetas de la raíz. Ahora excluye esa ruta con sacbe `3.0.2-4`, y `make restore` la conserva en lugar de borrarla junto con `geoserver-raster/`.
+
 ## [2.16.1] - 2026-11-19
 
 ### Cambiado

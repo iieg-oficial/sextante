@@ -16,7 +16,7 @@ x-host-gateway: &host-gateway
 
 services:
   sextante:
-    image: ghcr.io/ghegar/sacbe:3.0.2-3
+    image: ghcr.io/ghegar/sacbe:3.0.2-4
     container_name: sextante
     restart: unless-stopped
     ports:
@@ -29,7 +29,7 @@ services:
       GEOSERVER_CONTEXT: ${GEOSERVER_CONTEXT_ROOT:?}
       GEOSERVER_DATA_DIR: ${GEOSERVER_DATA_DIR:?}
       GEOWEBCACHE_CACHE_DIR: ${GEOWEBCACHE_CACHE_DIR:?}
-      BACKUP_EXCLUDE: gwc heapdumps ortofotos orto
+      BACKUP_EXCLUDE: gwc heapdumps geoserver-raster/ortofotos
       ENABLE_JSONP: ${ENABLE_JSONP:?}
       MAX_FILTER_RULES: ${MAX_FILTER_RULES:?}
       OPTIMIZE_LINE_WIDTH: ${OPTIMIZE_LINE_WIDTH:?}
