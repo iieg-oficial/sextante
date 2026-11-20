@@ -11,6 +11,12 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 - Imágenes base a Python 3.15 y Node 26.
 
+## [2.16.2] - 2026-11-20
+
+### Corregido
+
+- `make backup` seguía metiendo las ortofotos: viven en `geoserver-raster/ortofotos` y `BACKUP_EXCLUDE` solo excluía carpetas de la raíz. Ahora excluye esa ruta con sacbe `3.0.2-4`, y `make restore` la conserva en lugar de borrarla junto con `geoserver-raster/`.
+
 ## [2.16.1] - 2026-11-19
 
 ### Cambiado
