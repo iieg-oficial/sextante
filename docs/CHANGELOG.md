@@ -7,9 +7,12 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [No publicado]
 
+## [2.16.3] - 2026-11-23
+
 ### Cambiado
 
 - Imágenes base a Python 3.15 y Node 26.
+- Proxy del socket de Docker en `dhi.io/nginx:1.31.9-alpine3.24`, la imagen hardened de mainline, en lugar de `nginx:1.30.6-alpine`.
 
 ## [2.16.2] - 2026-11-20
 
